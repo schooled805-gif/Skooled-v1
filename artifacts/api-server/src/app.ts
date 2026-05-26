@@ -1,34 +1,33 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import pinoHttpModule from "pino-http";
+import pinoHttp from "pino-http";
+import type { Options } from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import path from "path";
 import fs from "fs";
 
-const pinoHttp = pinoHttpModule;
-
 const app: Express = express();
 
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req: any) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res: any) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
+const pinoOptions: Options = {
+  logger,
+  serializers: {
+    req(req: any) {
+      return {
+        id: req.id,
+        method: req.method,
+        url: req.url?.split("?")[0],
+      };
     },
-  }),
-);
+    res(res: any) {
+      return {
+        statusCode: res.statusCode,
+      };
+    },
+  },
+};
+
+app.use(pinoHttp(pinoOptions));
 
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
@@ -41,7 +40,6 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 app.use("/api/uploads", express.static(uploadsDir));
-
 app.use("/api", router);
 
 export default app;
