@@ -1,0 +1,1223 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Skolr school super app API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: profiles
+    description: User profiles
+  - name: students
+    description: Students
+  - name: classes
+    description: Classes
+  - name: subjects
+    description: Subjects
+  - name: teachers
+    description: Teachers
+  - name: timetable
+    description: Timetable entries
+  - name: events
+    description: School events
+  - name: approvals
+    description: Approval requests
+  - name: messages
+    description: Internal messaging
+  - name: announcements
+    description: Announcements
+  - name: reports
+    description: Student reports
+  - name: dashboard
+    description: Dashboard summaries
+  - name: schools
+    description: Schools
+  - name: parent-student-links
+    description: Parent-student relationships
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── PROFILES ──────────────────────────────────────────────────────────────
+  /profiles/me:
+    get:
+      operationId: getMyProfile
+      tags: [profiles]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /profiles:
+    get:
+      operationId: listProfiles
+      tags: [profiles]
+      summary: List all profiles (admin only)
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: school_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profiles list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Profile"
+    post:
+      operationId: createProfile
+      tags: [profiles]
+      summary: Create a user profile (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /profiles/{id}:
+    get:
+      operationId: getProfile
+      tags: [profiles]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    patch:
+      operationId: updateProfile
+      tags: [profiles]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  # ── STUDENTS ──────────────────────────────────────────────────────────────
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List students
+      parameters:
+        - name: school_id
+          in: query
+          schema:
+            type: string
+        - name: class_id
+          in: query
+          schema:
+            type: string
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /students/{id}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    patch:
+      operationId: updateStudent
+      tags: [students]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  # ── CLASSES ──────────────────────────────────────────────────────────────
+  /classes:
+    get:
+      operationId: listClasses
+      tags: [classes]
+      summary: List classes
+      parameters:
+        - name: school_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Classes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Class"
+    post:
+      operationId: createClass
+      tags: [classes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+
+  /classes/{id}:
+    get:
+      operationId: getClass
+      tags: [classes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Class
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+    patch:
+      operationId: updateClass
+      tags: [classes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+
+  # ── SUBJECTS ──────────────────────────────────────────────────────────────
+  /subjects:
+    get:
+      operationId: listSubjects
+      tags: [subjects]
+      responses:
+        "200":
+          description: Subjects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+    post:
+      operationId: createSubject
+      tags: [subjects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+
+  # ── TIMETABLE ─────────────────────────────────────────────────────────────
+  /timetable:
+    get:
+      operationId: listTimetableEntries
+      tags: [timetable]
+      parameters:
+        - name: student_id
+          in: query
+          schema:
+            type: string
+        - name: class_id
+          in: query
+          schema:
+            type: string
+        - name: teacher_id
+          in: query
+          schema:
+            type: string
+        - name: day_of_week
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Timetable entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimetableEntry"
+    post:
+      operationId: createTimetableEntry
+      tags: [timetable]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimetableEntryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimetableEntry"
+
+  /timetable/{id}:
+    patch:
+      operationId: updateTimetableEntry
+      tags: [timetable]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimetableEntryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimetableEntry"
+    delete:
+      operationId: deleteTimetableEntry
+      tags: [timetable]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ── EVENTS ────────────────────────────────────────────────────────────────
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      parameters:
+        - name: audience
+          in: query
+          schema:
+            type: string
+        - name: upcoming
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+    post:
+      operationId: createEvent
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+  /events/{id}:
+    get:
+      operationId: getEvent
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+    patch:
+      operationId: updateEvent
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+  # ── APPROVALS ─────────────────────────────────────────────────────────────
+  /approvals:
+    get:
+      operationId: listApprovals
+      tags: [approvals]
+      parameters:
+        - name: student_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approvals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Approval"
+    post:
+      operationId: createApproval
+      tags: [approvals]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+
+  /approvals/{id}/respond:
+    post:
+      operationId: respondToApproval
+      tags: [approvals]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalResponse"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+
+  # ── MESSAGES ──────────────────────────────────────────────────────────────
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      parameters:
+        - name: conversation_with
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/conversations:
+    get:
+      operationId: listConversations
+      tags: [messages]
+      summary: List conversation threads
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+
+  /messages/{id}/read:
+    patch:
+      operationId: markMessageRead
+      tags: [messages]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  # ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      parameters:
+        - name: audience_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [announcements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  # ── REPORTS ───────────────────────────────────────────────────────────────
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      parameters:
+        - name: student_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: createReport
+      tags: [reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  # ── SCHOOLS ───────────────────────────────────────────────────────────────
+  /schools:
+    get:
+      operationId: listSchools
+      tags: [schools]
+      summary: List all schools
+      responses:
+        "200":
+          description: List of schools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/School"
+    post:
+      operationId: createSchool
+      tags: [schools]
+      summary: Create a school
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchoolInput"
+      responses:
+        "201":
+          description: School created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/School"
+
+  /schools/{id}:
+    get:
+      operationId: getSchool
+      tags: [schools]
+      summary: Get a school by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: School
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/School"
+
+  # ── PARENT-STUDENT LINKS ───────────────────────────────────────────────────
+  /parent-student-links:
+    get:
+      operationId: listParentStudentLinks
+      tags: [parent-student-links]
+      summary: List parent-student links
+      parameters:
+        - name: parent_user_id
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ParentStudentLink"
+    post:
+      operationId: createParentStudentLink
+      tags: [parent-student-links]
+      summary: Link a parent to a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParentStudentLinkInput"
+      responses:
+        "201":
+          description: Link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParentStudentLink"
+
+  /parent-student-links/{id}:
+    delete:
+      operationId: deleteParentStudentLink
+      tags: [parent-student-links]
+      summary: Remove a parent-student link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── DASHBOARD ─────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    Profile:
+      type: object
+      required: [id, user_id, role, full_name, email, school_id, created_at]
+      properties:
+        id:           { type: string }
+        user_id:      { type: string }
+        role:         { type: string }
+        full_name:    { type: string }
+        email:        { type: string }
+        phone:        { type: ["string", "null"] }
+        avatar_url:   { type: ["string", "null"] }
+        school_id:    { type: string }
+        created_at:   { type: string }
+        updated_at:   { type: ["string", "null"] }
+
+    ProfileInput:
+      type: object
+      required: [user_id, role, full_name, email, school_id]
+      properties:
+        user_id:    { type: string }
+        role:       { type: string }
+        full_name:  { type: string }
+        email:      { type: string }
+        phone:      { type: string }
+        avatar_url: { type: string }
+        school_id:  { type: string }
+
+    ProfileUpdate:
+      type: object
+      properties:
+        full_name:  { type: string }
+        phone:      { type: string }
+        avatar_url: { type: string }
+
+    Student:
+      type: object
+      required: [id, profile_id, class_id, school_id, grade, created_at]
+      properties:
+        id:                  { type: string }
+        profile_id:          { type: string }
+        class_id:            { type: ["string", "null"] }
+        school_id:           { type: string }
+        grade:               { type: string }
+        date_of_birth:       { type: ["string", "null"] }
+        student_number:      { type: ["string", "null"] }
+        full_name:           { type: string }
+        avatar_url:          { type: ["string", "null"] }
+        created_at:          { type: string }
+
+    StudentInput:
+      type: object
+      required: [profile_id, school_id, grade]
+      properties:
+        profile_id:      { type: string }
+        class_id:        { type: string }
+        school_id:       { type: string }
+        grade:           { type: string }
+        date_of_birth:   { type: string }
+        student_number:  { type: string }
+
+    StudentUpdate:
+      type: object
+      properties:
+        class_id:      { type: string }
+        grade:         { type: string }
+        date_of_birth: { type: string }
+
+    Class:
+      type: object
+      required: [id, name, school_id, grade_level, created_at]
+      properties:
+        id:            { type: string }
+        name:          { type: string }
+        school_id:     { type: string }
+        grade_level:   { type: string }
+        teacher_id:    { type: ["string", "null"] }
+        academic_year: { type: ["string", "null"] }
+        created_at:    { type: string }
+
+    ClassInput:
+      type: object
+      required: [name, school_id, grade_level]
+      properties:
+        name:          { type: string }
+        school_id:     { type: string }
+        grade_level:   { type: string }
+        teacher_id:    { type: string }
+        academic_year: { type: string }
+
+    ClassUpdate:
+      type: object
+      properties:
+        name:          { type: string }
+        grade_level:   { type: string }
+        teacher_id:    { type: string }
+
+    Subject:
+      type: object
+      required: [id, name, school_id, created_at]
+      properties:
+        id:         { type: string }
+        name:       { type: string }
+        code:       { type: ["string", "null"] }
+        school_id:  { type: string }
+        created_at: { type: string }
+
+    SubjectInput:
+      type: object
+      required: [name, school_id]
+      properties:
+        name:      { type: string }
+        code:      { type: string }
+        school_id: { type: string }
+
+    TimetableEntry:
+      type: object
+      required: [id, subject_id, teacher_id, day_of_week, start_time, end_time, type, school_id, created_at]
+      properties:
+        id:           { type: string }
+        student_id:   { type: ["string", "null"] }
+        class_id:     { type: ["string", "null"] }
+        subject_id:   { type: string }
+        teacher_id:   { type: string }
+        day_of_week:  { type: string }
+        start_time:   { type: string }
+        end_time:     { type: string }
+        room:         { type: ["string", "null"] }
+        type:         { type: string }
+        school_id:    { type: string }
+        subject_name: { type: ["string", "null"] }
+        teacher_name: { type: ["string", "null"] }
+        class_name:   { type: ["string", "null"] }
+        created_at:   { type: string }
+
+    TimetableEntryInput:
+      type: object
+      required: [subject_id, teacher_id, day_of_week, start_time, end_time, type, school_id]
+      properties:
+        student_id:  { type: string }
+        class_id:    { type: string }
+        subject_id:  { type: string }
+        teacher_id:  { type: string }
+        day_of_week: { type: string }
+        start_time:  { type: string }
+        end_time:    { type: string }
+        room:        { type: string }
+        type:        { type: string }
+        school_id:   { type: string }
+
+    TimetableEntryUpdate:
+      type: object
+      properties:
+        day_of_week: { type: string }
+        start_time:  { type: string }
+        end_time:    { type: string }
+        room:        { type: string }
+        type:        { type: string }
+
+    Event:
+      type: object
+      required: [id, title, event_type, start_datetime, school_id, created_at]
+      properties:
+        id:                { type: string }
+        title:             { type: string }
+        description:       { type: ["string", "null"] }
+        event_type:        { type: string }
+        start_datetime:    { type: string }
+        end_datetime:      { type: ["string", "null"] }
+        location:          { type: ["string", "null"] }
+        audience:          { type: string }
+        requires_approval: { type: boolean }
+        approval_due_date: { type: ["string", "null"] }
+        school_id:         { type: string }
+        created_at:        { type: string }
+
+    EventInput:
+      type: object
+      required: [title, event_type, start_datetime, audience, school_id]
+      properties:
+        title:             { type: string }
+        description:       { type: string }
+        event_type:        { type: string }
+        start_datetime:    { type: string }
+        end_datetime:      { type: string }
+        location:          { type: string }
+        audience:          { type: string }
+        requires_approval: { type: boolean }
+        approval_due_date: { type: string }
+        school_id:         { type: string }
+
+    EventUpdate:
+      type: object
+      properties:
+        title:             { type: string }
+        description:       { type: string }
+        start_datetime:    { type: string }
+        end_datetime:      { type: string }
+        location:          { type: string }
+        requires_approval: { type: boolean }
+
+    Approval:
+      type: object
+      required: [id, event_id, student_id, parent_user_id, status, school_id, created_at]
+      properties:
+        id:               { type: string }
+        event_id:         { type: string }
+        student_id:       { type: string }
+        parent_user_id:   { type: string }
+        status:           { type: string }
+        response_comment: { type: ["string", "null"] }
+        responded_at:     { type: ["string", "null"] }
+        school_id:        { type: string }
+        event_title:      { type: ["string", "null"] }
+        student_name:     { type: ["string", "null"] }
+        created_at:       { type: string }
+
+    ApprovalInput:
+      type: object
+      required: [event_id, student_id, parent_user_id, school_id]
+      properties:
+        event_id:       { type: string }
+        student_id:     { type: string }
+        parent_user_id: { type: string }
+        school_id:      { type: string }
+
+    ApprovalResponse:
+      type: object
+      required: [status]
+      properties:
+        status:           { type: string }
+        response_comment: { type: string }
+
+    Message:
+      type: object
+      required: [id, sender_id, recipient_id, body, school_id, created_at]
+      properties:
+        id:          { type: string }
+        sender_id:   { type: string }
+        recipient_id: { type: string }
+        body:        { type: string }
+        student_id:  { type: ["string", "null"] }
+        subject_id:  { type: ["string", "null"] }
+        read_at:     { type: ["string", "null"] }
+        school_id:   { type: string }
+        sender_name: { type: ["string", "null"] }
+        created_at:  { type: string }
+
+    MessageInput:
+      type: object
+      required: [recipient_id, body, school_id]
+      properties:
+        recipient_id: { type: string }
+        body:         { type: string }
+        student_id:   { type: string }
+        subject_id:   { type: string }
+        school_id:    { type: string }
+
+    Conversation:
+      type: object
+      required: [other_user_id, other_user_name, last_message, last_message_at, unread_count]
+      properties:
+        other_user_id:   { type: string }
+        other_user_name: { type: string }
+        other_user_role: { type: ["string", "null"] }
+        last_message:    { type: string }
+        last_message_at: { type: string }
+        unread_count:    { type: integer }
+
+    Announcement:
+      type: object
+      required: [id, title, body, audience_type, school_id, created_at]
+      properties:
+        id:             { type: string }
+        title:          { type: string }
+        body:           { type: string }
+        audience_type:  { type: string }
+        priority:       { type: ["string", "null"] }
+        attachment_url: { type: ["string", "null"] }
+        publish_at:     { type: ["string", "null"] }
+        expires_at:     { type: ["string", "null"] }
+        school_id:      { type: string }
+        author_name:    { type: ["string", "null"] }
+        created_at:     { type: string }
+
+    AnnouncementInput:
+      type: object
+      required: [title, body, audience_type, school_id]
+      properties:
+        title:          { type: string }
+        body:           { type: string }
+        audience_type:  { type: string }
+        priority:       { type: string }
+        attachment_url: { type: string }
+        publish_at:     { type: string }
+        expires_at:     { type: string }
+        school_id:      { type: string }
+
+    Report:
+      type: object
+      required: [id, student_id, title, term, year, file_url, school_id, created_at]
+      properties:
+        id:           { type: string }
+        student_id:   { type: string }
+        title:        { type: string }
+        term:         { type: string }
+        year:         { type: integer }
+        file_url:     { type: string }
+        visible_to_student: { type: boolean }
+        school_id:    { type: string }
+        student_name: { type: ["string", "null"] }
+        created_at:   { type: string }
+
+    ReportInput:
+      type: object
+      required: [student_id, title, term, year, file_url, school_id]
+      properties:
+        student_id:         { type: string }
+        title:              { type: string }
+        term:               { type: string }
+        year:               { type: integer }
+        file_url:           { type: string }
+        visible_to_student: { type: boolean }
+        school_id:          { type: string }
+
+    School:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id:         { type: string }
+        name:       { type: string }
+        address:    { type: ["string", "null"] }
+        phone:      { type: ["string", "null"] }
+        email:      { type: ["string", "null"] }
+        logo_url:   { type: ["string", "null"] }
+        created_at: { type: string }
+
+    SchoolInput:
+      type: object
+      required: [name]
+      properties:
+        name:     { type: string }
+        address:  { type: string }
+        phone:    { type: string }
+        email:    { type: string }
+        logo_url: { type: string }
+
+    ParentStudentLink:
+      type: object
+      required: [id, parent_user_id, student_id, school_id, created_at]
+      properties:
+        id:             { type: string }
+        parent_user_id: { type: string }
+        student_id:     { type: string }
+        school_id:      { type: string }
+        student_name:   { type: ["string", "null"] }
+        student_grade:  { type: ["string", "null"] }
+        created_at:     { type: string }
+
+    ParentStudentLinkInput:
+      type: object
+      required: [parent_user_id, student_id, school_id]
+      properties:
+        parent_user_id: { type: string }
+        student_id:     { type: string }
+        school_id:      { type: string }
+
+    DashboardSummary:
+      type: object
+      required: [total_students, total_teachers, total_classes, pending_approvals, unread_messages, upcoming_events]
+      properties:
+        total_students:     { type: integer }
+        total_teachers:     { type: integer }
+        total_classes:      { type: integer }
+        pending_approvals:  { type: integer }
+        unread_messages:    { type: integer }
+        upcoming_events:    { type: integer }
+        recent_announcements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Announcement"

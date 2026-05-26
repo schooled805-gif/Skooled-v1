@@ -1,0 +1,281 @@
+Build a production-ready school super app called Skolr.
+
+Use:
+- Next.js with TypeScript
+- Tailwind CSS
+- Supabase for authentication, PostgreSQL database, Row Level Security, and file storage
+- Supabase client for frontend and server-side database actions
+- Vercel-ready project structure
+- Mobile-responsive design
+- Clean modern UI
+
+Important:
+This project must be deployable to Vercel.
+Do not use Replit database.
+Do not use local-only storage.
+Use Supabase for all database, authentication, and file uploads.
+
+Create four portals:
+1. Parent Portal
+2. Teacher Portal
+3. Student Portal
+4. Management/Admin Portal
+
+Use these portal colors:
+- Parent: purple
+- Teacher: green
+- Student: coral/orange
+- Admin/Management: blue
+
+Core MVP features:
+
+1. Authentication
+- Login page
+- Logout
+- Password reset placeholder
+- Role-based routing
+- Roles: parent, teacher, student, admin
+- After login, send each user to their correct dashboard
+
+2. Database schema
+Create SQL migration scripts for Supabase with these tables:
+- schools
+- profiles
+- students
+- parent_student_links
+- teachers
+- classes
+- subjects
+- teacher_subject_assignments
+- timetable_entries
+- events
+- approvals
+- messages
+- announcements
+- reports
+- notifications
+- audit_logs
+
+Each table must include:
+- id
+- school_id where applicable
+- created_at
+- updated_at where applicable
+
+3. Security
+Create Supabase Row Level Security policies:
+- Parents can only see linked children
+- Teachers can only see assigned classes/students
+- Students can only see their own data
+- Admins can manage all data for their school
+- Reports must only be visible to linked parents, assigned students, and admins
+- Messages must only be visible to sender, recipient, and admin
+
+4. Parent Portal
+Create:
+- Parent dashboard
+- Linked children cards
+- Today’s schedule
+- Upcoming events
+- Pending approvals
+- Latest announcements
+- Messages
+- Reports page
+- Calendar page
+
+Parents must be able to:
+- View child timetable
+- View school events and sports fixtures
+- Approve or decline consent requests
+- Add approval comment
+- View/download reports
+- Message subject teachers
+
+5. Teacher Portal
+Create:
+- Teacher dashboard
+- My classes
+- My learners
+- Today’s lessons
+- Parent messages
+- Class announcements
+- Approval request creator
+- Approval response tracker
+
+Teachers must be able to:
+- View assigned classes
+- View assigned learners
+- Message parents
+- Create class announcements
+- Create approval requests
+- View approval responses
+
+6. Student Portal
+Create:
+- Student dashboard
+- My timetable
+- Homework/tasks placeholder
+- Calendar
+- Announcements
+- Reports view if allowed
+
+Students must not have student-to-student messaging.
+
+7. Admin/Management Portal
+Create:
+- Admin dashboard
+- User management
+- Student management
+- Teacher management
+- Class management
+- Subject management
+- Timetable management
+- Event creation
+- Approval management
+- Report upload
+- Announcement creation
+- Message log
+- Audit log
+
+Admins must be able to:
+- Create and manage users
+- Link parents to students
+- Assign teachers to subjects/classes
+- Create school events
+- Create sports fixtures
+- Create approval requests
+- Upload PDF reports
+- Send announcements
+- View approval responses
+
+8. Timetable
+Each timetable entry must support:
+- student_id or class_id
+- subject_id
+- teacher_id
+- day_of_week
+- start_time
+- end_time
+- room
+- type: lesson, sport, event, exam, homework
+
+9. Events
+Each event must support:
+- title
+- description
+- event_type
+- start_datetime
+- end_datetime
+- location
+- audience: school, grade, class, student, team
+- requires_approval
+- approval_due_date
+
+10. Approvals
+Each approval must support:
+- event_id
+- student_id
+- parent_user_id
+- status: pending, approved, declined, expired
+- response_comment
+- responded_at
+
+11. Messaging
+Create a simple internal messaging system:
+- Conversation list
+- Chat screen
+- Send message
+- Read status
+- Message linked to student and subject where applicable
+
+Rules:
+- Parent can message teachers assigned to their child
+- Teacher can message parents of learners they teach
+- Admin can message anyone
+
+12. Reports
+Create report upload and viewing:
+- Admin uploads PDF to Supabase Storage
+- Report linked to student, term, and year
+- Parent can view/download linked child’s report
+- Student can view own report if allowed
+
+13. Announcements
+Announcements must support:
+- title
+- body
+- audience_type
+- priority
+- attachment_url
+- publish_at
+- expires_at
+
+14. Seed demo data
+Create seed SQL for:
+- One demo school
+- One admin
+- Two teachers
+- Three parents
+- Five students
+- Two classes
+- Five subjects
+- Sample timetable
+- Sample events
+- Sample approval requests
+- Sample announcements
+- Sample report records
+
+15. UI screens
+Create these screens:
+- Landing page
+- Login
+- Parent dashboard
+- Parent child profile
+- Parent schedule
+- Parent approvals
+- Parent messages
+- Parent reports
+- Teacher dashboard
+- Teacher classes
+- Teacher messages
+- Teacher approvals
+- Student dashboard
+- Student timetable
+- Admin dashboard
+- Admin users
+- Admin students
+- Admin classes
+- Admin events
+- Admin approvals
+- Admin reports
+- Admin announcements
+
+16. Vercel deployment readiness
+Add:
+- README.md with setup instructions
+- .env.example
+- Supabase setup instructions
+- Vercel deployment instructions
+- Build command
+- Environment variable list
+- GitHub deployment instructions
+
+Environment variables must include:
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+17. Build carefully
+First create the project structure.
+Then create Supabase SQL migrations.
+Then create authentication.
+Then create dashboards.
+Then create timetable/events/approvals.
+Then create messaging.
+Then create reports.
+Then create announcements.
+Then add seed data.
+Then test and fix errors.
+
+Do not build payments, GPS tracking, GoHighLevel, or mobile app yet.
+Add them as Phase 2 placeholders only.
