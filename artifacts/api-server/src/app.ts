@@ -1,11 +1,14 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import pinoHttp from "pino-http";
-import type { Options } from "pino-http";
+import pinoHttpModule, { type Options } from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import path from "path";
 import fs from "fs";
+
+const pinoHttp = pinoHttpModule as unknown as (
+  opts?: Options,
+) => express.RequestHandler;
 
 const app: Express = express();
 
