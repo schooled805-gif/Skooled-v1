@@ -591,6 +591,11 @@ export const ListReportsResponseItem = zod.object({
   "visible_to_student": zod.boolean().optional(),
   "school_id": zod.string(),
   "student_name": zod.string().nullish(),
+  "grade": zod.string().nullish(),
+  "subject": zod.string().nullish(),
+  "teacher_name": zod.string().nullish(),
+  "comments": zod.string().nullish(),
+  "score": zod.number().nullish(),
   "created_at": zod.string()
 })
 export const ListReportsResponse = zod.array(ListReportsResponseItem)
@@ -603,7 +608,12 @@ export const CreateReportBody = zod.object({
   "year": zod.number(),
   "file_url": zod.string(),
   "visible_to_student": zod.boolean().optional(),
-  "school_id": zod.string()
+  "school_id": zod.string(),
+  "grade": zod.string().optional(),
+  "subject": zod.string().optional(),
+  "teacher_name": zod.string().optional(),
+  "comments": zod.string().optional(),
+  "score": zod.number().optional()
 })
 
 

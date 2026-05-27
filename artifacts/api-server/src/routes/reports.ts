@@ -74,6 +74,11 @@ router.post("/reports", async (req, res) => {
       fileUrl: body.file_url,
       visibleToStudent: body.visible_to_student ?? false,
       schoolId: body.school_id,
+      grade: body.grade ?? null,
+      subject: body.subject ?? null,
+      teacherName: body.teacher_name ?? null,
+      comments: body.comments ?? null,
+      score: body.score ?? null,
     }).returning();
     res.status(201).json({ ...report, student_name: null });
   } catch (err) {

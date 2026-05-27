@@ -31,6 +31,11 @@ export default function AdminReports() {
     visible_to_student: false,
     file_url: '',
     file_name: '',
+    grade: '',
+    subject: '',
+    teacher_name: '',
+    comments: '',
+    score: '',
   });
 
   const filtered = (reports ?? []).filter(r =>
@@ -73,16 +78,30 @@ export default function AdminReports() {
     }
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        student_id: form.student_id,
+        title: form.title,
+        term: form.term,
+        year: form.year,
+        file_url: form.file_url,
+        visible_to_student: form.visible_to_student,
+        school_id: schoolId,
+      };
+      if (form.grade.trim()) payload.grade = form.grade.trim();
+      if (form.subject.trim()) payload.subject = form.subject.trim();
+      if (form.teacher_name.trim()) payload.teacher_name = form.teacher_name.trim();
+      if (form.comments.trim()) payload.comments = form.comments.trim();
+      if (form.score.trim()) payload.score = parseFloat(form.score);
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
-        body: JSON.stringify({ student_id: form.student_id, title: form.title, term: form.term, year: form.year, file_url: form.file_url, visible_to_student: form.visible_to_student, school_id: schoolId }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed to save report');
       toast({ title: 'Report uploaded', description: `${form.title} has been saved` });
       qc.invalidateQueries({ queryKey: getListReportsQueryKey() });
       setOpen(false);
-      setForm({ student_id: '', title: '', term: '', year: new Date().getFullYear(), visible_to_student: false, file_url: '', file_name: '' });
+      setForm({ student_id: '', title: '', term: '', year: new Date().getFullYear(), visible_to_student: false, file_url: '', file_name: '', grade: '', subject: '', teacher_name: '', comments: '', score: '' });
       if (fileRef.current) fileRef.current.value = '';
     } catch {
       toast({ title: 'Error saving report', variant: 'destructive' });
@@ -118,22 +137,41 @@ export default function AdminReports() {
           <div className="space-y-3">
             {filtered.map(r => (
               <Card key={r.id} data-testid={`card-report-${r.id}`}>
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                    <FileText className="h-5 w-5 text-blue-600" />
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-gray-900">{r.title}</p>
+                        {r.grade && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">{r.grade}</span>
+                        )}
+                        {r.score != null && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-700">{r.score}%</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {r.student_name} — Term {r.term}, {r.year}
+                        {r.subject ? ` · ${r.subject}` : ''}
+                        {r.teacher_name ? ` · ${r.teacher_name}` : ''}
+                      </p>
+                      {r.comments && (
+                        <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">"{r.comments}"</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={r.visible_to_student ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-100'}>
+                        {r.visible_to_student ? 'Visible' : 'Hidden'}
+                      </Badge>
+                      <a href={r.file_url} target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="outline" data-testid={`button-download-${r.id}`}>
+                          <Download className="h-4 w-4 mr-1" /> View
+                        </Button>
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{r.title}</p>
-                    <p className="text-sm text-gray-500">{r.student_name} — Term {r.term}, {r.year}</p>
-                  </div>
-                  <Badge className={r.visible_to_student ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-100'}>
-                    {r.visible_to_student ? 'Visible' : 'Hidden'}
-                  </Badge>
-                  <a href={r.file_url} target="_blank" rel="noreferrer">
-                    <Button size="sm" variant="outline" data-testid={`button-download-${r.id}`}>
-                      <Download className="h-4 w-4 mr-1" /> View
-                    </Button>
-                  </a>
                 </CardContent>
               </Card>
             ))}
@@ -193,6 +231,35 @@ export default function AdminReports() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Grade</Label>
+                <Input value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} placeholder="e.g. A, B+, 85%" data-testid="input-grade" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Score (%)</Label>
+                <Input type="number" min="0" max="100" value={form.score} onChange={e => setForm(f => ({ ...f, score: e.target.value }))} placeholder="e.g. 87" data-testid="input-score" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Subject</Label>
+              <Input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Mathematics" data-testid="input-subject" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Teacher Name</Label>
+              <Input value={form.teacher_name} onChange={e => setForm(f => ({ ...f, teacher_name: e.target.value }))} placeholder="e.g. Mrs Smith" data-testid="input-teacher-name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Comments</Label>
+              <textarea
+                className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                value={form.comments}
+                onChange={e => setForm(f => ({ ...f, comments: e.target.value }))}
+                placeholder="Teacher's comments about the student's progress…"
+                data-testid="textarea-comments"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="visible" checked={form.visible_to_student} onChange={e => setForm(f => ({ ...f, visible_to_student: e.target.checked }))} data-testid="checkbox-visible" className="rounded" />
               <Label htmlFor="visible" className="cursor-pointer">Make visible to student immediately</Label>
