@@ -164,6 +164,51 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ── TUCKSHOP_ACCOUNTS ─────────────────────────────────────────────────────────
+export const tuckshopAccounts = pgTable("tuckshop_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().unique(),
+  schoolId: uuid("school_id").notNull(),
+  balanceCents: integer("balance_cents").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ── TUCKSHOP_MENUS ────────────────────────────────────────────────────────────
+export const tuckshopMenus = pgTable("tuckshop_menus", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull(),
+  weekLabel: text("week_label").notNull(), // e.g. "Week of 27 May 2026"
+  items: text("items").notNull().default("[]"), // JSON array of menu items
+  publishedAt: timestamp("published_at").defaultNow(),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── TUCKSHOP_ORDERS ───────────────────────────────────────────────────────────
+export const tuckshopOrders = pgTable("tuckshop_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull(),
+  schoolId: uuid("school_id").notNull(),
+  parentUserId: text("parent_user_id"),
+  items: text("items").notNull().default("[]"), // JSON array of ordered items
+  totalCents: integer("total_cents").notNull().default(0),
+  status: text("status").notNull().default("pending"), // pending|confirmed|ready|collected|cancelled
+  orderDate: text("order_date"), // YYYY-MM-DD
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// ── TUCKSHOP_TRANSACTIONS ─────────────────────────────────────────────────────
+export const tuckshopTransactions = pgTable("tuckshop_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  type: text("type").notNull(), // topup|order|refund|adjustment
+  description: text("description"),
+  referenceId: text("reference_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── AUDIT_LOGS ────────────────────────────────────────────────────────────────
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
