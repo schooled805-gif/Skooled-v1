@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -16,15 +17,13 @@ router.post("/teachers/invite", async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if profile already exists
     const [existing] = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.email, normalizedEmail)).limit(1);
     if (existing) {
       res.status(409).json({ error: "A teacher with this email already exists" });
       return;
     }
 
-    // Create profile with placeholder userId (linked on first login via email)
-    const placeholderUserId = crypto.randomUUID();
+    const placeholderUserId = randomUUID();
     const [profile] = await db.insert(profiles).values({
       userId: placeholderUserId,
       role: "teacher",
@@ -34,9 +33,9 @@ router.post("/teachers/invite", async (req, res) => {
       schoolId: school_id || null,
     }).returning();
 
-    // Try to send Supabase invite email via admin API
+    // Send Supabase invite email — check both SUPABASE_URL and VITE_SUPABASE_URL
     let invited = false;
-    const supabaseUrl = process.env["SUPABASE_URL"];
+    const supabaseUrl = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (supabaseUrl && serviceKey) {
       try {
@@ -47,10 +46,19 @@ router.post("/teachers/invite", async (req, res) => {
             "Authorization": `Bearer ${serviceKey}`,
             "apikey": serviceKey,
           },
-          body: JSON.stringify({ email: normalizedEmail, data: { full_name: full_name.trim() } }),
+          body: JSON.stringify({
+            email: normalizedEmail,
+            data: { full_name: full_name.trim(), role: "teacher" },
+          }),
         });
         invited = inviteRes.ok;
-      } catch {}
+        if (!inviteRes.ok) {
+          const errBody = await inviteRes.json().catch(() => ({}));
+          req.log.warn({ status: inviteRes.status, body: errBody }, "Supabase invite failed");
+        }
+      } catch (e) {
+        req.log.warn(e, "Supabase invite fetch error");
+      }
     }
 
     res.status(201).json({

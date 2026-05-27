@@ -1,17 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { PortalLayout } from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useListTimetableEntries, useListAnnouncements, useListReports } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Clock, FileText, Megaphone, BookOpen } from 'lucide-react';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const priorityColor = (p: string | null) =>
+  ({ high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700' })[p ?? ''] ?? 'bg-gray-100 text-gray-600';
+
 export default function StudentDashboard() {
   const { profile } = useAuth();
   const today = DAY_NAMES[new Date().getDay()];
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
 
   const { data: allEntries, isLoading: loadingTimetable } = useListTimetableEntries();
   const { data: announcements, isLoading: loadingAnn } = useListAnnouncements({ audience_type: 'student' });
@@ -31,9 +36,6 @@ export default function StudentDashboard() {
 
   const typeColor = (type: string) =>
     ({ lesson: 'bg-orange-100 text-orange-700', sport: 'bg-blue-100 text-blue-700', exam: 'bg-red-100 text-red-700' })[type] ?? 'bg-gray-100 text-gray-600';
-
-  const priorityColor = (p: string | null) =>
-    ({ high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700' })[p ?? ''] ?? 'bg-gray-100 text-gray-600';
 
   return (
     <PortalLayout role="student">
@@ -55,13 +57,13 @@ export default function StudentDashboard() {
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Today's Classes", value: loadingTimetable ? '–' : todayEntries.length, color: 'bg-orange-100 text-orange-600' },
-            { label: 'Announcements', value: loadingAnn ? '–' : (announcements?.length ?? 0), color: 'bg-purple-100 text-purple-600' },
-            { label: 'My Reports', value: loadingReports ? '–' : visibleReports.length, color: 'bg-blue-100 text-blue-600' },
+            { label: "Today's Classes", value: loadingTimetable ? '–' : todayEntries.length, color: 'text-orange-600' },
+            { label: 'Announcements', value: loadingAnn ? '–' : (announcements?.length ?? 0), color: 'text-purple-600' },
+            { label: 'My Reports', value: loadingReports ? '–' : visibleReports.length, color: 'text-blue-600' },
           ].map(s => (
             <Card key={s.label}>
               <CardContent className="p-4 text-center">
-                <p className={`text-2xl font-bold ${s.color.split(' ')[1]}`}>{s.value}</p>
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
               </CardContent>
             </Card>
@@ -129,15 +131,23 @@ export default function StudentDashboard() {
                 ) : !(announcements?.length) ? (
                   <p className="text-sm text-gray-400 text-center py-3">No announcements</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {(announcements ?? []).slice(0, 3).map(a => (
-                      <div key={a.id} className="pb-3 border-b last:border-b-0 last:pb-0">
+                      <button
+                        key={a.id}
+                        onClick={() => setSelectedAnnouncement(a)}
+                        className="w-full text-left hover:bg-orange-50 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                      >
                         <div className="flex items-center gap-2 mb-0.5">
-                          <p className="text-sm font-medium text-gray-800 truncate">{a.title}</p>
-                          {a.priority && <Badge className={`${priorityColor(a.priority)} text-xs hover:opacity-90 shrink-0`}>{a.priority}</Badge>}
+                          <p className="text-sm font-medium text-gray-800 truncate flex-1">{a.title}</p>
+                          {(a as any).priority && (
+                            <Badge className={`${priorityColor((a as any).priority)} text-xs hover:opacity-90 shrink-0`}>
+                              {(a as any).priority}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 line-clamp-2">{a.body}</p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -190,6 +200,29 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Announcement detail dialog */}
+      <Dialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-3 pr-6">
+              <Megaphone className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+              <span>{selectedAnnouncement?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {selectedAnnouncement?.priority && (
+              <Badge className={`${priorityColor(selectedAnnouncement.priority)} text-xs`}>
+                {selectedAnnouncement.priority} priority
+              </Badge>
+            )}
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedAnnouncement?.body}</p>
+            {selectedAnnouncement?.author_name && (
+              <p className="text-xs text-gray-400 pt-2 border-t">Posted by {selectedAnnouncement.author_name}</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }

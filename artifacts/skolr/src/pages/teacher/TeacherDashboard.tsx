@@ -1,9 +1,9 @@
-import React from 'react';
-import { Link } from 'wouter';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'wouter';
 import { PortalLayout } from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useListTimetableEntries,
   useListApprovals,
@@ -11,13 +11,25 @@ import {
   useListClasses,
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Clock, Users, CheckSquare, Megaphone, ArrowRight, BookOpen } from 'lucide-react';
+import { Loader2, Clock, Users, CheckSquare, Megaphone, BookOpen } from 'lucide-react';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const priorityColor = (p: string | null) =>
+  ({ high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700' })[p ?? ''] ?? 'bg-gray-100 text-gray-600';
+
 export default function TeacherDashboard() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const [, setLocation] = useLocation();
   const today = DAY_NAMES[new Date().getDay()];
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
+
+  // Redirect invited teachers who haven't completed setup
+  useEffect(() => {
+    if (user && !localStorage.getItem(`teacher_setup_${user.id}`)) {
+      setLocation('/teacher/setup');
+    }
+  }, [user]);
 
   const { data: allEntries, isLoading: loadingTimetable } = useListTimetableEntries();
   const { data: approvals, isLoading: loadingApprovals } = useListApprovals();
@@ -124,8 +136,8 @@ export default function TeacherDashboard() {
                     {pendingApprovals.slice(0, 3).map(a => (
                       <div key={a.id} className="flex items-center gap-2 text-sm">
                         <CheckSquare className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                        <span className="text-gray-700 truncate">{a.event_title ?? 'Event'}</span>
-                        <span className="text-gray-400 text-xs shrink-0">{a.student_name}</span>
+                        <span className="text-gray-700 truncate">{(a as any).event_title ?? 'Event'}</span>
+                        <span className="text-gray-400 text-xs shrink-0">{(a as any).student_name}</span>
                       </div>
                     ))}
                     {pendingApprovals.length > 3 && (
@@ -153,10 +165,21 @@ export default function TeacherDashboard() {
                 ) : (
                   <div className="space-y-2">
                     {(announcements ?? []).slice(0, 3).map(a => (
-                      <div key={a.id} className="text-sm">
-                        <p className="font-medium text-gray-800 truncate">{a.title}</p>
+                      <button
+                        key={a.id}
+                        onClick={() => setSelectedAnnouncement(a)}
+                        className="w-full text-left hover:bg-emerald-50 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-800 truncate text-sm flex-1">{a.title}</p>
+                          {(a as any).priority && (
+                            <Badge className={`${priorityColor((a as any).priority)} text-xs hover:opacity-90 shrink-0`}>
+                              {(a as any).priority}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 truncate">{a.body}</p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -181,6 +204,29 @@ export default function TeacherDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Announcement detail dialog */}
+      <Dialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-3 pr-6">
+              <Megaphone className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+              <span>{selectedAnnouncement?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {selectedAnnouncement?.priority && (
+              <Badge className={`${priorityColor(selectedAnnouncement.priority)} text-xs`}>
+                {selectedAnnouncement.priority} priority
+              </Badge>
+            )}
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedAnnouncement?.body}</p>
+            {selectedAnnouncement?.author_name && (
+              <p className="text-xs text-gray-400 pt-2 border-t">Posted by {selectedAnnouncement.author_name}</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }

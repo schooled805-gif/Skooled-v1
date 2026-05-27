@@ -32,6 +32,7 @@ import ParentMessages from "@/pages/parent/ParentMessages";
 import ParentReports from "@/pages/parent/ParentReports";
 
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
+import TeacherSetup from "@/pages/teacher/TeacherSetup";
 import TeacherClasses from "@/pages/teacher/TeacherClasses";
 import TeacherMessages from "@/pages/teacher/TeacherMessages";
 import TeacherApprovals from "@/pages/teacher/TeacherApprovals";
@@ -165,6 +166,9 @@ function Router() {
       </Route>
 
       {/* Teacher */}
+      <Route path="/teacher/setup">
+        <AuthGuard allowedRoles={['teacher']}><TeacherSetup /></AuthGuard>
+      </Route>
       <Route path="/teacher">
         <AuthGuard allowedRoles={['teacher']}><TeacherDashboard /></AuthGuard>
       </Route>

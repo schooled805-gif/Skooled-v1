@@ -1,26 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { PortalLayout } from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useListApprovals, useListAnnouncements, useListParentStudentLinks, useListStudents } from '@workspace/api-client-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useListApprovals, useListAnnouncements, useListParentStudentLinks } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar } from 'lucide-react';
+import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar, X } from 'lucide-react';
+
+interface EnrichedLink {
+  id: string;
+  student_id: string;
+  student_name: string | null;
+  student_grade: string | null;
+  student_number: string | null;
+}
 
 export default function ParentDashboard() {
   const { user, profile } = useAuth();
   const { data: approvals, isLoading: loadingApprovals } = useListApprovals({ parent_id: user?.id });
   const { data: announcements, isLoading: loadingAnnouncements } = useListAnnouncements({ audience_type: 'parent' });
-  const { data: links, isLoading: loadingLinks } = useListParentStudentLinks({ parent_user_id: user?.id });
-  const { data: students } = useListStudents(profile?.school_id ? { school_id: profile.school_id } : undefined);
+  const { data: rawLinks, isLoading: loadingLinks } = useListParentStudentLinks({ parent_user_id: user?.id });
 
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
+
+  const links = (rawLinks as unknown as EnrichedLink[]) ?? [];
   const pending = (approvals ?? []).filter(a => a.status === 'pending');
   const recent = (announcements ?? []).slice(0, 4);
-
-  // Build a map of student data for linked children
-  const studentMap = new Map((students ?? []).map(s => [s.id, s]));
-  const children = (links ?? []).map(l => studentMap.get(l.student_id)).filter(Boolean) as any[];
 
   const priorityColor = (p: string | null) =>
     ({ high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700' })[p ?? ''] ?? 'bg-gray-100 text-gray-600';
@@ -43,7 +50,7 @@ export default function ParentDashboard() {
           </h2>
           {loadingLinks ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin h-5 w-5 text-purple-400" /></div>
-          ) : children.length === 0 ? (
+          ) : links.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-gray-400">
                 <GraduationCap className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -53,18 +60,20 @@ export default function ParentDashboard() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {children.map(child => (
-                <Card key={child.id} className="border-l-4 border-l-purple-400 hover:shadow-md transition-shadow">
+              {links.map(link => (
+                <Card key={link.id} className="border-l-4 border-l-purple-400 hover:shadow-md transition-shadow">
                   <CardContent className="p-5">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                        <span className="text-purple-700 font-bold">{child.full_name?.[0]?.toUpperCase() ?? '?'}</span>
+                        <span className="text-purple-700 font-bold">
+                          {link.student_name?.[0]?.toUpperCase() ?? '?'}
+                        </span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{child.full_name}</p>
+                        <p className="font-semibold text-gray-900 truncate">{link.student_name ?? 'Unknown'}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="outline" className="text-xs">{child.grade}</Badge>
-                          {child.student_number && <span className="text-xs text-gray-400 font-mono">{child.student_number}</span>}
+                          {link.student_grade && <Badge variant="outline" className="text-xs">{link.student_grade}</Badge>}
+                          {link.student_number && <span className="text-xs text-gray-400 font-mono">{link.student_number}</span>}
                         </div>
                       </div>
                     </div>
@@ -134,7 +143,7 @@ export default function ParentDashboard() {
                 <GraduationCap className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{children.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{links.length}</p>
                 <p className="text-sm text-gray-500">Children linked</p>
               </div>
             </CardContent>
@@ -166,8 +175,8 @@ export default function ParentDashboard() {
                     <div key={a.id} className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
                       <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{a.event_title ?? 'Event'}</p>
-                        <p className="text-xs text-gray-400">{a.student_name}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{(a as any).event_title ?? 'Event'}</p>
+                        <p className="text-xs text-gray-400">{(a as any).student_name}</p>
                       </div>
                       <Link href="/parent/approvals">
                         <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs cursor-pointer">Respond</Badge>
@@ -198,16 +207,24 @@ export default function ParentDashboard() {
               ) : (
                 <div className="space-y-3">
                   {recent.map(a => (
-                    <div key={a.id} className="flex gap-3 pb-3 border-b last:border-b-0 last:pb-0">
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedAnnouncement(a)}
+                      className="w-full text-left flex gap-3 pb-3 border-b last:border-b-0 last:pb-0 hover:bg-purple-50 rounded-lg px-2 -mx-2 transition-colors cursor-pointer"
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <p className="text-sm font-medium text-gray-900 truncate">{a.title}</p>
-                          {a.priority && <Badge className={`${priorityColor(a.priority)} text-xs hover:opacity-90 shrink-0`}>{a.priority}</Badge>}
+                          {(a as any).priority && (
+                            <Badge className={`${priorityColor((a as any).priority)} text-xs hover:opacity-90 shrink-0`}>
+                              {(a as any).priority}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 line-clamp-2">{a.body}</p>
-                        {a.author_name && <p className="text-xs text-gray-400 mt-1">— {a.author_name}</p>}
+                        {(a as any).author_name && <p className="text-xs text-gray-400 mt-1">— {(a as any).author_name}</p>}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -231,6 +248,34 @@ export default function ParentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Announcement detail dialog */}
+      <Dialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-3 pr-6">
+              <Megaphone className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
+              <span>{selectedAnnouncement?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {selectedAnnouncement?.priority && (
+              <Badge className={`${priorityColor(selectedAnnouncement.priority)} text-xs`}>
+                {selectedAnnouncement.priority} priority
+              </Badge>
+            )}
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedAnnouncement?.body}</p>
+            {selectedAnnouncement?.author_name && (
+              <p className="text-xs text-gray-400 pt-2 border-t">Posted by {selectedAnnouncement.author_name}</p>
+            )}
+            {selectedAnnouncement?.publish_at && (
+              <p className="text-xs text-gray-400">
+                {new Date(selectedAnnouncement.publish_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }
