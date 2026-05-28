@@ -1,16 +1,16 @@
 {
-  "buildCommand": "pnpm --filter @workspace/api-server exec node ./build.mjs",
+  "buildCommand": "pnpm --filter @workspace/api-server exec node ./build.mjs && cp -r artifacts/api-server/dist dist",
   "installCommand": "pnpm install --ignore-scripts",
-  "outputDirectory": "artifacts/api-server/dist",
+  "outputDirectory": "dist",
   "framework": null,
   "functions": {
-    "api/index.mjs": {
+    "dist/api/index.mjs": {
       "memory": 1024,
       "maxDuration": 30
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index.mjs" }
+    { "source": "/(.*)", "destination": "/dist/api/index.mjs" }
   ],
   "headers": [
     {
