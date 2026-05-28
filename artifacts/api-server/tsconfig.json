@@ -4,15 +4,12 @@
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
+    "lib": ["es2022", "DOM"],
     "noEmitOnError": false
   },
   "include": ["src"],
   "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    }
+    { "path": "../../lib/db" },
+    { "path": "../../lib/api-zod" }
   ]
 }
