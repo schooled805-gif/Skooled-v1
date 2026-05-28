@@ -1,8 +1,7 @@
-
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, profiles, schools } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   ListStudentsQueryParams,
   CreateStudentBody,
@@ -10,7 +9,6 @@ import {
   UpdateStudentParams,
   UpdateStudentBody,
 } from "@workspace/api-zod";
-import { inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -31,8 +29,8 @@ router.get("/students", async (req, res) => {
     }).from(students).leftJoin(profiles, eq(students.profileId, profiles.id));
 
     let result = rows;
-    if (query.school_id) result = result.filter(s => s.school_id === query.school_id);
-    if (query.class_id) result = result.filter(s => s.class_id === query.class_id);
+    if (query.school_id) result = result.filter((s) => s.school_id === query.school_id);
+    if (query.class_id) result = result.filter((s) => s.class_id === query.class_id);
     res.json(result);
   } catch (err) {
     req.log.error(err);
@@ -111,7 +109,6 @@ router.post("/students/full-create", async (req, res) => {
       return;
     }
 
-    // Generate student number: school prefix + sequential
     const existingCount = await db.select({ id: students.id }).from(students).where(eq(students.schoolId, school_id));
     const seq = String(existingCount.length + 1).padStart(4, "0");
 
@@ -125,7 +122,6 @@ router.post("/students/full-create", async (req, res) => {
 
     const student_number = `${prefix}-${seq}`;
 
-    // Create profile with placeholder userId (linked on first login via email)
     const placeholderUserId = crypto.randomUUID();
     const [profile] = await db.insert(profiles).values({
       userId: placeholderUserId,
@@ -135,7 +131,6 @@ router.post("/students/full-create", async (req, res) => {
       schoolId: school_id,
     }).returning();
 
-    // Create student record
     const [student] = await db.insert(students).values({
       profileId: profile.id,
       classId: class_id,
@@ -145,18 +140,17 @@ router.post("/students/full-create", async (req, res) => {
       studentNumber: student_number,
     }).returning();
 
-    // Try to send Supabase invite email
     let invited = false;
     const supabaseUrl = process.env["SUPABASE_URL"];
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (supabaseUrl && serviceKey) {
       try {
-        const supabaseInviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
+        const inviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
           body: JSON.stringify({ email: email.trim().toLowerCase(), data: { full_name: full_name.trim() } }),
         });
-        invited = supabaseInviteRes.status >= 200 && supabaseInviteRes.status < 300;
+        invited = inviteRes.ok;
       } catch {}
     }
 
