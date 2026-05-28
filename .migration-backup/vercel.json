@@ -1,11 +1,8 @@
 {
-  "buildCommand": "pnpm --filter @workspace/skolr run build",
-  "outputDirectory": "artifacts/skolr/dist",
-  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @workspace/api-server exec node ./build.mjs",
+  "installCommand": "pnpm install --ignore-scripts",
+  "outputDirectory": "artifacts/api-server/dist",
   "framework": null,
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
