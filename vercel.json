@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm --filter @workspace/api-server exec node ./build.mjs && cp -r artifacts/api-server/dist dist",
+  "buildCommand": "sh vercel-build.sh",
   "installCommand": "pnpm install --ignore-scripts",
   "outputDirectory": "dist",
   "framework": null,
