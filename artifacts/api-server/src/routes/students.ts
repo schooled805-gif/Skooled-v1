@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, profiles, schools } from "@workspace/db";
@@ -150,12 +151,12 @@ router.post("/students/full-create", async (req, res) => {
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (supabaseUrl && serviceKey) {
       try {
-        const supabaseInviteRes: globalThis.Response = await fetch(`${supabaseUrl}/auth/v1/invite`, {
+        const supabaseInviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
           body: JSON.stringify({ email: email.trim().toLowerCase(), data: { full_name: full_name.trim() } }),
         });
-        invited = supabaseInviteRes.ok;
+        invited = supabaseInviteRes.status >= 200 && supabaseInviteRes.status < 300;
       } catch {}
     }
 
