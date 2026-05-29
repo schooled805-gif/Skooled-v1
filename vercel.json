@@ -1,6 +1,6 @@
 {
-  "buildCommand": "sh vercel-build.sh",
-  "installCommand": "pnpm install --ignore-scripts",
+  "buildCommand": "",
+  "installCommand": "",
   "outputDirectory": "dist",
   "framework": null,
   "functions": {
