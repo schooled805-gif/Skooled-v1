@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-24"]
 
 [deployment]
 router = "application"
@@ -21,20 +21,20 @@ timeoutMs = 20000
 
 [[ports]]
 localPort = 8080
-externalPort = 8080
+externalPort = 80
 
 [[ports]]
 localPort = 8081
-externalPort = 80
+externalPort = 8081
 
 [[ports]]
 localPort = 23738
 externalPort = 3000
 
-[userenv]
+[[ports]]
+localPort = 24837
+externalPort = 3001
 
-[userenv.shared]
-VITE_SUPABASE_URL = "https://pqcpcrnecrnqfwmaanxr.supabase.co"
-
-[nix]
-channel = "stable-25_05"
+[[ports]]
+localPort = 24838
+externalPort = 3002

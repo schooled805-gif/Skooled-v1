@@ -6,8 +6,30 @@ import {
   ListReportsQueryParams,
   CreateReportBody,
 } from "@workspace/api-zod";
+import path from "path";
+import fs from "fs";
 
 const router = Router();
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+router.post("/reports/upload", async (req, res) => {
+  try {
+    const { file_data, file_name } = req.body;
+    if (!file_data || !file_name) {
+      res.status(400).json({ error: "file_data and file_name are required" });
+      return;
+    }
+    const buffer = Buffer.from(file_data, "base64");
+    const safeName = `${Date.now()}-${file_name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    fs.writeFileSync(path.join(uploadsDir, safeName), buffer);
+    res.json({ url: `/api/uploads/${safeName}` });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get("/reports", async (req, res) => {
   try {
@@ -22,6 +44,11 @@ router.get("/reports", async (req, res) => {
       visible_to_student: reports.visibleToStudent,
       school_id: reports.schoolId,
       student_name: profiles.fullName,
+      grade: reports.grade,
+      subject: reports.subject,
+      teacher_name: reports.teacherName,
+      comments: reports.comments,
+      score: reports.score,
       created_at: reports.createdAt,
     }).from(reports)
       .leftJoin(students, eq(reports.studentId, students.id))
@@ -47,6 +74,11 @@ router.post("/reports", async (req, res) => {
       fileUrl: body.file_url,
       visibleToStudent: body.visible_to_student ?? false,
       schoolId: body.school_id,
+      grade: body.grade ?? null,
+      subject: body.subject ?? null,
+      teacherName: body.teacher_name ?? null,
+      comments: body.comments ?? null,
+      score: body.score ?? null,
     }).returning();
     res.status(201).json({ ...report, student_name: null });
   } catch (err) {

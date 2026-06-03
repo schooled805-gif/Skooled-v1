@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { announcements, profiles } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import {
   ListAnnouncementsQueryParams,
   CreateAnnouncementBody,
 } from "@workspace/api-zod";
+import { sendPushNotifications } from "../lib/pushNotifications";
 
 const router = Router();
 
@@ -53,6 +54,41 @@ router.post("/announcements", async (req, res) => {
       schoolId: body.school_id,
       authorId: userId ?? null,
     }).returning();
+
+    // Send push notifications to school-scoped profiles (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        const audienceType = body.audience_type;
+        const rows = await db
+          .select({ pushToken: profiles.pushToken, role: profiles.role })
+          .from(profiles)
+          .where(
+            and(
+              isNotNull(profiles.pushToken),
+              eq(profiles.schoolId, body.school_id),
+            ),
+          );
+
+        const tokens = rows
+          .filter((r) => {
+            if (!r.pushToken) return false;
+            if (audienceType === "all") return true;
+            return r.role === audienceType;
+          })
+          .map((r) => r.pushToken as string);
+
+        if (tokens.length > 0) {
+          await sendPushNotifications(tokens, {
+            title: `📢 ${body.title}`,
+            body: body.body.length > 120 ? body.body.slice(0, 117) + "…" : body.body,
+            data: { type: "announcement", id: announcement.id },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    });
+
     res.status(201).json({ ...announcement, author_name: null });
   } catch (err) {
     req.log.error(err);

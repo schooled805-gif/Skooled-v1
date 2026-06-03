@@ -13,6 +13,8 @@ import reportsRouter from "./reports";
 import dashboardRouter from "./dashboard";
 import schoolsRouter from "./schools";
 import parentStudentLinksRouter from "./parentStudentLinks";
+import teachersRouter from "./teachers";
+import tuckshopRouter from "./tuckshop";
 
 const router: IRouter = Router();
 
@@ -30,5 +32,7 @@ router.use(reportsRouter);
 router.use(dashboardRouter);
 router.use(schoolsRouter);
 router.use(parentStudentLinksRouter);
+router.use(teachersRouter);
+router.use(tuckshopRouter);
 
 export default router;

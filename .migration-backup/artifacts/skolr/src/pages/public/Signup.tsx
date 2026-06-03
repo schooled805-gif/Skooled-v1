@@ -43,14 +43,13 @@ function MicrosoftIcon() {
   );
 }
 
-type Role = 'admin' | 'parent' | 'teacher';
+type Role = 'admin' | 'parent';
 
 interface School { id: string; name: string; address?: string | null; }
 interface StudentResult { id: string; full_name: string; grade: string; student_number?: string | null; class_id?: string | null; }
 
-const STEPS_ADMIN   = ['Choose role', 'Your details', 'Your school'];
-const STEPS_TEACHER = ['Choose role', 'Your details', 'Your school'];
-const STEPS_PARENT  = ['Choose role', 'Your details', 'Find school', 'Link children'];
+const STEPS_ADMIN  = ['Choose role', 'Your details', 'Your school'];
+const STEPS_PARENT = ['Choose role', 'Your details', 'Find school', 'Link children'];
 
 export default function Signup() {
   const [, setLocation] = useLocation();
@@ -102,11 +101,11 @@ export default function Signup() {
   // Submission
   const [submitting, setSubmitting] = useState(false);
 
-  const steps = role === 'admin' ? STEPS_ADMIN : role === 'teacher' ? STEPS_TEACHER : STEPS_PARENT;
+  const steps = role === 'admin' ? STEPS_ADMIN : STEPS_PARENT;
 
   // Load schools when reaching school step
   useEffect(() => {
-    if (step === 2 && (role === 'parent' || role === 'teacher')) {
+    if (step === 2 && role === 'parent') {
       setLoadingSchools(true);
       fetch('/api/schools')
         .then(r => r.json())
@@ -277,7 +276,7 @@ export default function Signup() {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Join Skolr today</p>
+            <p className="text-sm text-gray-500 mt-0.5">Join Skooled today</p>
           </div>
         </div>
 
@@ -339,20 +338,15 @@ export default function Signup() {
                   {role === 'parent' && <Check className="h-5 w-5 text-purple-600 ml-auto shrink-0" />}
                 </button>
 
-                <button
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${role === 'teacher' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300'}`}
-                  onClick={() => setRole('teacher')}
-                  data-testid="role-teacher"
-                >
+                <div className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 opacity-75 cursor-not-allowed">
                   <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                    <BookOpen className="h-5 w-5 text-emerald-600" />
+                    <BookOpen className="h-5 w-5 text-emerald-400" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">Teacher</p>
-                    <p className="text-sm text-gray-500">Manage your classes, communicate with parents, and more</p>
+                    <p className="font-semibold text-gray-500">Teacher</p>
+                    <p className="text-sm text-gray-400">Teachers are added by school administrators — check your email for an invitation</p>
                   </div>
-                  {role === 'teacher' && <Check className="h-5 w-5 text-emerald-600 ml-auto shrink-0" />}
-                </button>
+                </div>
 
                 <button
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${role === 'admin' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
@@ -364,7 +358,7 @@ export default function Signup() {
                   </div>
                   <div className="text-left">
                     <p className="font-semibold text-gray-900">School Administrator</p>
-                    <p className="text-sm text-gray-500">Set up and manage your school on Skolr</p>
+                    <p className="text-sm text-gray-500">Set up and manage your school on Skooled</p>
                   </div>
                   {role === 'admin' && <Check className="h-5 w-5 text-blue-600 ml-auto shrink-0" />}
                 </button>
@@ -481,57 +475,6 @@ export default function Signup() {
                 <div className="flex gap-2 pt-1">
                   <Button variant="outline" onClick={prevStep} className="flex-1"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
                   <Button onClick={handleSubmit} disabled={!canProceedStep2 || submitting} className="flex-1 bg-blue-600 hover:bg-blue-700" data-testid="button-create-account">
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Create Account
-                  </Button>
-                </div>
-              </CardContent>
-            </>
-          )}
-
-          {/* ── STEP 2: School (Teacher) ────────────────────────── */}
-          {step === 2 && role === 'teacher' && (
-            <>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-emerald-600" /> Your School</CardTitle>
-                <CardDescription>Select the school you teach at</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input className="pl-9" placeholder="Search schools…" value={schoolSearch} onChange={e => setSchoolSearch(e.target.value)} />
-                </div>
-                {loadingSchools ? (
-                  <div className="flex justify-center py-6"><Loader2 className="animate-spin h-5 w-5 text-emerald-500" /></div>
-                ) : filteredSchools.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">No schools found. Contact your school administrator.</p>
-                ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto">
-                    {filteredSchools.map(school => (
-                      <button
-                        key={school.id}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${selectedSchool?.id === school.id ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300'}`}
-                        onClick={() => setSelectedSchool(school)}
-                        data-testid={`school-option-${school.id}`}
-                      >
-                        <Building2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-gray-900 truncate">{school.name}</p>
-                          {school.address && <p className="text-xs text-gray-400 truncate">{school.address}</p>}
-                        </div>
-                        {selectedSchool?.id === school.id && <Check className="h-4 w-4 text-emerald-600 shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <Button variant="outline" onClick={prevStep} className="flex-1"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!selectedSchool || submitting}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    data-testid="button-create-account"
-                  >
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                     Create Account
                   </Button>

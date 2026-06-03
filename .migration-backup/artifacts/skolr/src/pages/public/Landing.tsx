@@ -12,7 +12,7 @@ export default function Landing() {
           <div className="w-8 h-8 bg-slate-900 rounded-md flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">Skolr</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">Skooled</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/signup">
@@ -93,13 +93,13 @@ export default function Landing() {
             <strong className="text-slate-700">Parents:</strong> sign up to link your account to your child's record.
           </p>
           <p className="text-slate-500 text-sm">
-            <strong className="text-slate-700">Teachers & students</strong> are invited by the school administrator.
+            <strong className="text-slate-700">Teachers</strong> are added by the school administrator — you'll receive an email invitation.
           </p>
         </div>
       </main>
 
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-sm">
-        <p>© {new Date().getFullYear()} Skolr. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Skooled. All rights reserved.</p>
       </footer>
     </div>
   );

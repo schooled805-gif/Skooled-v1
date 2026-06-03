@@ -32,8 +32,21 @@ function mapProfile(p: Profile) {
 router.get("/profiles/me", async (req, res) => {
   try {
     const userId = req.headers["x-user-id"] as string;
+    const userEmail = req.headers["x-user-email"] as string | undefined;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+
+    let [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+
+    // Email-based fallback: when a teacher/student is invited by admin, their profile
+    // has a placeholder userId. On first login, link the real Supabase userId.
+    if (!profile && userEmail) {
+      const [byEmail] = await db.select().from(profiles).where(eq(profiles.email, userEmail.toLowerCase())).limit(1);
+      if (byEmail) {
+        const [updated] = await db.update(profiles).set({ userId, updatedAt: new Date() }).where(eq(profiles.id, byEmail.id)).returning();
+        profile = updated;
+      }
+    }
+
     if (!profile) { res.status(404).json({ error: "Profile not found" }); return; }
     res.json(mapProfile(profile));
   } catch (err) {
@@ -144,6 +157,28 @@ router.patch("/profiles/:id", async (req, res) => {
     }).where(eq(profiles.id, id)).returning();
     if (!profile) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapProfile(profile));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/profiles/me/push-token", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"] as string;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const push_token: string | null = req.body?.push_token ?? null;
+    if (push_token !== null && typeof push_token !== "string") {
+      res.status(400).json({ error: "push_token must be a string or null" });
+      return;
+    }
+    const [profile] = await db
+      .update(profiles)
+      .set({ pushToken: push_token, updatedAt: new Date() })
+      .where(eq(profiles.userId, userId))
+      .returning();
+    if (!profile) { res.status(404).json({ error: "Profile not found" }); return; }
+    res.json({ ok: true });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

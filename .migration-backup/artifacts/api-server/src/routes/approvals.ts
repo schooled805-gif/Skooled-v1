@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { approvals, events, students, profiles } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   ListApprovalsQueryParams,
   CreateApprovalBody,
   RespondToApprovalParams,
   RespondToApprovalBody,
 } from "@workspace/api-zod";
+import { sendPushNotifications } from "../lib/pushNotifications";
 
 const router = Router();
 
@@ -52,6 +53,41 @@ router.post("/approvals", async (req, res) => {
       status: "pending",
       schoolId: body.school_id,
     }).returning();
+
+    // Notify the parent that their approval is required (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        const [parentProfile] = await db
+          .select({ pushToken: profiles.pushToken })
+          .from(profiles)
+          .where(
+            and(
+              eq(profiles.userId, body.parent_user_id),
+              eq(profiles.schoolId, body.school_id),
+            ),
+          )
+          .limit(1);
+
+        const [event] = await db
+          .select({ title: events.title })
+          .from(events)
+          .where(eq(events.id, body.event_id))
+          .limit(1);
+
+        if (parentProfile?.pushToken) {
+          await sendPushNotifications([parentProfile.pushToken], {
+            title: "✅ Approval Required",
+            body: event?.title
+              ? `Your approval is needed for "${event.title}"`
+              : "Your approval is needed for a school event",
+            data: { type: "approval", id: approval.id },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    });
+
     res.status(201).json({ ...approval, event_title: null, student_name: null });
   } catch (err) {
     req.log.error(err);

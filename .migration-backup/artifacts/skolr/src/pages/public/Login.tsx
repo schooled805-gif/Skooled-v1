@@ -47,7 +47,7 @@ export default function Login() {
 
       const userId = data.user?.id;
       if (userId) {
-        const res = await fetch('/api/profiles/me', { headers: { 'x-user-id': userId } });
+        const res = await fetch('/api/profiles/me', { headers: { 'x-user-id': userId, ...(data.user?.email ? { 'x-user-email': data.user.email } : {}) } });
         if (res.ok) {
           const profile = await res.json();
           setLocation(`/${profile?.role ?? 'parent'}`);
@@ -177,7 +177,7 @@ export default function Login() {
           </CardContent>
           <CardFooter className="flex justify-center">
             <p className="text-sm text-slate-500">
-              New to Skolr?{' '}
+              New to Skooled?{' '}
               <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
                 Create an account
               </Link>

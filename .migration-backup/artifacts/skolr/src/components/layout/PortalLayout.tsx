@@ -16,6 +16,7 @@ import {
   UserRound,
   CalendarDays,
   Palette,
+  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +40,7 @@ const getRoleConfig = (role: string) => {
         hoverBg: 'hover:bg-purple-50',
         links: [
           { name: 'Dashboard', path: '/parent', icon: Home },
+          { name: 'Tuckshop', path: '/parent/tuckshop', icon: ShoppingBag },
           { name: 'Schedule', path: '/parent/schedule', icon: Calendar },
           { name: 'Approvals', path: '/parent/approvals', icon: CheckSquare },
           { name: 'Messages', path: '/parent/messages', icon: MessageSquare },
@@ -63,6 +65,7 @@ const getRoleConfig = (role: string) => {
         hoverBg: 'hover:bg-orange-50',
         links: [
           { name: 'Dashboard', path: '/student', icon: Home },
+          { name: 'Tuckshop', path: '/student/tuckshop', icon: ShoppingBag },
           { name: 'Timetable', path: '/student/timetable', icon: Calendar },
           { name: 'Reports', path: '/student/reports', icon: FileText },
           { name: 'Announcements', path: '/student/announcements', icon: Megaphone },
@@ -81,6 +84,7 @@ const getRoleConfig = (role: string) => {
           { name: 'Timetable',     path: '/admin/timetable',    icon: Calendar },
           { name: 'Calendar',      path: '/admin/calendar',     icon: CalendarDays },
           { name: 'Events',        path: '/admin/events',       icon: Megaphone },
+          { name: 'Tuckshop',      path: '/admin/tuckshop',     icon: ShoppingBag },
           { name: 'Approvals',     path: '/admin/approvals',    icon: CheckSquare },
           { name: 'Reports',       path: '/admin/reports',      icon: FileText },
           { name: 'Announcements', path: '/admin/announcements',icon: Megaphone },

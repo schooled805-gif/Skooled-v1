@@ -24,14 +24,17 @@ import AdminEvents from "@/pages/admin/AdminEvents";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminReports from "@/pages/admin/AdminReports";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
+import AdminTuckshop from "@/pages/admin/AdminTuckshop";
 
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import ParentSchedule from "@/pages/parent/ParentSchedule";
 import ParentApprovals from "@/pages/parent/ParentApprovals";
 import ParentMessages from "@/pages/parent/ParentMessages";
 import ParentReports from "@/pages/parent/ParentReports";
+import ParentTuckshop from "@/pages/parent/ParentTuckshop";
 
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
+import TeacherSetup from "@/pages/teacher/TeacherSetup";
 import TeacherClasses from "@/pages/teacher/TeacherClasses";
 import TeacherMessages from "@/pages/teacher/TeacherMessages";
 import TeacherApprovals from "@/pages/teacher/TeacherApprovals";
@@ -41,6 +44,7 @@ import StudentDashboard from "@/pages/student/StudentDashboard";
 import StudentTimetable from "@/pages/student/StudentTimetable";
 import StudentReports from "@/pages/student/StudentReports";
 import StudentAnnouncements from "@/pages/student/StudentAnnouncements";
+import StudentTuckshop from "@/pages/student/StudentTuckshop";
 
 const queryClient = new QueryClient();
 
@@ -146,6 +150,9 @@ function Router() {
       <Route path="/admin/announcements">
         <AuthGuard allowedRoles={['admin']}><AdminAnnouncements /></AuthGuard>
       </Route>
+      <Route path="/admin/tuckshop">
+        <AuthGuard allowedRoles={['admin']}><AdminTuckshop /></AuthGuard>
+      </Route>
 
       {/* Parent */}
       <Route path="/parent">
@@ -163,8 +170,14 @@ function Router() {
       <Route path="/parent/reports">
         <AuthGuard allowedRoles={['parent']}><ParentReports /></AuthGuard>
       </Route>
+      <Route path="/parent/tuckshop">
+        <AuthGuard allowedRoles={['parent']}><ParentTuckshop /></AuthGuard>
+      </Route>
 
       {/* Teacher */}
+      <Route path="/teacher/setup">
+        <AuthGuard allowedRoles={['teacher']}><TeacherSetup /></AuthGuard>
+      </Route>
       <Route path="/teacher">
         <AuthGuard allowedRoles={['teacher']}><TeacherDashboard /></AuthGuard>
       </Route>
@@ -193,6 +206,9 @@ function Router() {
       </Route>
       <Route path="/student/announcements">
         <AuthGuard allowedRoles={['student']}><StudentAnnouncements /></AuthGuard>
+      </Route>
+      <Route path="/student/tuckshop">
+        <AuthGuard allowedRoles={['student']}><StudentTuckshop /></AuthGuard>
       </Route>
 
       <Route component={NotFound} />
