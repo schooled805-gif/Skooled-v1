@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttpModule, { type Options } from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { bearerToUserHeaders } from "./middleware/auth";
 
 const pinoHttp = pinoHttpModule as unknown as (
   opts?: Options,
@@ -33,6 +34,9 @@ app.use(pinoHttp(pinoOptions));
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+
+// Convert Bearer JWT to x-user-id / x-user-email headers for mobile clients
+app.use(bearerToUserHeaders);
 
 app.use("/api", router);
 
