@@ -9,11 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart, Wallet, ClipboardList, Plus, Minus, X, AlertCircle } from "lucide-react";
 
-async function apiFetch(url: string, userId: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
+async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
   const res = await fetch(url, {
     ...rest,
-    headers: { "Content-Type": "application/json", "x-user-id": userId, ...(rest.headers ?? {}) },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, ...(rest.headers ?? {}) },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
@@ -68,7 +68,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ParentTuckshop() {
-  const { profile, school, user } = useAuth();
+  const { profile, school, user, session } = useAuth();
   const qc = useQueryClient();
   const schoolId = school?.id ?? profile?.school_id ?? "";
 
@@ -81,7 +81,7 @@ export default function ParentTuckshop() {
   // Linked children
   const { data: links = [] } = useQuery<{ student_id: string; student_name: string; school_id: string }[]>({
     queryKey: ["parent-links", user?.id],
-    queryFn: () => apiFetch(`/api/parent-student-links?parent_user_id=${user?.id}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/parent-student-links?parent_user_id=${user?.id}`, session?.access_token ?? ""),
     enabled: !!user?.id,
   });
 
@@ -91,26 +91,26 @@ export default function ParentTuckshop() {
   // Account for active child
   const { data: account } = useQuery<TuckshopAccount>({
     queryKey: ["tuckshop-account", activeChild],
-    queryFn: () => apiFetch(`/api/tuckshop/account?student_id=${activeChild}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/account?student_id=${activeChild}`, session?.access_token ?? ""),
     enabled: !!activeChild,
   });
 
   // Current menu
   const { data: menu } = useQuery<Menu | null>({
     queryKey: ["tuckshop-menu", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/menu?school_id=${schoolId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/menu?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
   // Orders for active child
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["tuckshop-orders", activeChild],
-    queryFn: () => apiFetch(`/api/tuckshop/orders?student_id=${activeChild}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/orders?student_id=${activeChild}`, session?.access_token ?? ""),
     enabled: !!activeChild,
   });
 
   const placeOrder = useMutation({
-    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/orders", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/orders", session?.access_token ?? "", { method: "POST", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tuckshop-account", activeChild] });
       qc.invalidateQueries({ queryKey: ["tuckshop-orders", activeChild] });

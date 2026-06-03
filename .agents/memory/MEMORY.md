@@ -1,1 +1,2 @@
 - [api-client-react Vite resolution](api-client-react-vite.md) — package needs both a Vite alias AND workspace export condition to resolve in dev and TypeScript.
+- [Supabase JWT auth pattern](supabase-jwt-auth.md) — API server verifies Bearer tokens via supabaseAdmin.auth.getUser(); never trust x-user-id from clients.

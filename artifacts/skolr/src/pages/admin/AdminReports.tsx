@@ -13,7 +13,7 @@ import { Loader2, Plus, FileText, Download, Upload, Search } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminReports() {
-  const { schoolId, user } = useAuth();
+  const { schoolId, user, session } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: reports, isLoading } = useListReports();
@@ -59,7 +59,7 @@ export default function AdminReports() {
       });
       const res = await fetch('/api/reports/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({ file_data: base64, file_name: file.name }),
       });
       if (!res.ok) throw new Error('Upload failed');
@@ -94,7 +94,7 @@ export default function AdminReports() {
       if (form.score.trim()) payload.score = parseFloat(form.score);
       const res = await fetch('/api/reports', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed to save report');

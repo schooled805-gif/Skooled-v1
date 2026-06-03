@@ -8,11 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart, Wallet, Plus, Minus, X, AlertCircle, Receipt } from "lucide-react";
 
-async function apiFetch(url: string, userId: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
+async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
   const res = await fetch(url, {
     ...rest,
-    headers: { "Content-Type": "application/json", "x-user-id": userId, ...(rest.headers ?? {}) },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, ...(rest.headers ?? {}) },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
@@ -73,7 +73,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function StudentTuckshop() {
-  const { profile, school, user } = useAuth();
+  const { profile, school, user, session } = useAuth();
   const qc = useQueryClient();
   const schoolId = school?.id ?? profile?.school_id ?? "";
 
@@ -85,37 +85,37 @@ export default function StudentTuckshop() {
   // Get student record via profile
   const { data: students = [] } = useQuery<{ id: string }[]>({
     queryKey: ["students-by-profile", profile?.id],
-    queryFn: () => apiFetch(`/api/students?profile_id=${profile?.id}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/students?profile_id=${profile?.id}`, session?.access_token ?? ""),
     enabled: !!profile?.id,
   });
   const studentId = students[0]?.id ?? null;
 
   const { data: account } = useQuery<TuckshopAccount>({
     queryKey: ["tuckshop-account-student", studentId],
-    queryFn: () => apiFetch(`/api/tuckshop/account?student_id=${studentId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/account?student_id=${studentId}`, session?.access_token ?? ""),
     enabled: !!studentId,
   });
 
   const { data: menu } = useQuery<Menu | null>({
     queryKey: ["tuckshop-menu", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/menu?school_id=${schoolId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/menu?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["tuckshop-orders-student", studentId],
-    queryFn: () => apiFetch(`/api/tuckshop/orders?student_id=${studentId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/orders?student_id=${studentId}`, session?.access_token ?? ""),
     enabled: !!studentId,
   });
 
   const { data: transactions = [] } = useQuery<Transaction[]>({
     queryKey: ["tuckshop-transactions", account?.id],
-    queryFn: () => apiFetch(`/api/tuckshop/transactions?account_id=${account?.id}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/transactions?account_id=${account?.id}`, session?.access_token ?? ""),
     enabled: !!account?.id,
   });
 
   const placeOrder = useMutation({
-    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/orders", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/orders", session?.access_token ?? "", { method: "POST", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tuckshop-account-student", studentId] });
       qc.invalidateQueries({ queryKey: ["tuckshop-orders-student", studentId] });

@@ -23,7 +23,7 @@ function exportTeachersCSV(teachers: any[]) {
 }
 
 export default function AdminTeachers() {
-  const { schoolId, user } = useAuth();
+  const { schoolId, user, session } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: teachers, isLoading } = useListProfiles(schoolId ? { role: 'teacher', school_id: schoolId } : { role: 'teacher' });
@@ -39,7 +39,7 @@ export default function AdminTeachers() {
     try {
       const res = await fetch('/api/teachers/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({ full_name: form.full_name, email: form.email, phone: form.phone || undefined, school_id: schoolId }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to add teacher'); }
@@ -61,7 +61,7 @@ export default function AdminTeachers() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Remove ${name} from the school?`)) return;
     try {
-      const res = await fetch(`/api/profiles/${id}`, { method: 'DELETE', headers: { 'x-user-id': user?.id ?? '' } });
+      const res = await fetch(`/api/profiles/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session?.access_token ?? ''}` } });
       if (!res.ok) throw new Error();
       toast({ title: 'Teacher removed' });
       qc.invalidateQueries({ queryKey: getListProfilesQueryKey() });
@@ -93,7 +93,7 @@ export default function AdminTeachers() {
         const full_name = vals[nameIdx] ?? ''; const email = vals[emailIdx] ?? ''; const phone = phoneIdx >= 0 ? vals[phoneIdx] ?? '' : '';
         if (!full_name || !email) { failed++; continue; }
         try {
-          const r = await fetch('/api/teachers/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ full_name, email: email.toLowerCase(), phone: phone || undefined, school_id: schoolId }) });
+          const r = await fetch('/api/teachers/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email.toLowerCase(), phone: phone || undefined, school_id: schoolId }) });
           if (r.ok) success++; else failed++;
         } catch { failed++; }
       }

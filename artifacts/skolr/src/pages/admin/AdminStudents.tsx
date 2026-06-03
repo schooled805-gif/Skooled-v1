@@ -29,7 +29,7 @@ function exportToCSV(rows: any[], filename: string) {
 }
 
 export default function AdminStudents() {
-  const { schoolId, user, profile: adminProfile } = useAuth();
+  const { schoolId, user, profile: adminProfile, session } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: students, isLoading } = useListStudents(schoolId ? { school_id: schoolId } : undefined);
@@ -61,7 +61,7 @@ export default function AdminStudents() {
     try {
       const res = await fetch('/api/students/full-create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({ full_name: form.full_name.trim(), email: form.email.trim().toLowerCase(), grade: form.grade.trim(), class_id: form.class_id, date_of_birth: form.date_of_birth || undefined, school_id: schoolId }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create student'); }
@@ -77,7 +77,7 @@ export default function AdminStudents() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Remove ${name}? This cannot be undone.`)) return;
     try {
-      await fetch(`/api/students/${id}`, { method: 'DELETE', headers: { 'x-user-id': user?.id ?? '' } });
+      await fetch(`/api/students/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session?.access_token ?? ''}` } });
       toast({ title: 'Student removed' });
       qc.invalidateQueries({ queryKey: getListStudentsQueryKey() });
     } catch { toast({ title: 'Failed to remove student', variant: 'destructive' }); }
@@ -116,7 +116,7 @@ export default function AdminStudents() {
         const date_of_birth = dobIdx >= 0 ? vals[dobIdx] ?? '' : '';
         if (!full_name || !email || !grade || !class_id) { failed++; continue; }
         try {
-          const r = await fetch('/api/students/full-create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ full_name, email: email.toLowerCase(), grade, class_id, date_of_birth: date_of_birth || undefined, school_id: schoolId }) });
+          const r = await fetch('/api/students/full-create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email.toLowerCase(), grade, class_id, date_of_birth: date_of_birth || undefined, school_id: schoolId }) });
           if (r.ok) success++; else failed++;
         } catch { failed++; }
       }

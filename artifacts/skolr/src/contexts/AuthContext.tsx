@@ -70,10 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (profile?.school_id) await fetchSchool(profile.school_id);
   };
 
-  const fetchProfile = async (u: User) => {
+  const fetchProfile = async (u: User, accessToken: string) => {
     try {
       const res = await fetch('/api/profiles/me', {
-        headers: { 'x-user-id': u.id },
+        headers: { 'Authorization': `Bearer ${accessToken}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -91,8 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user).finally(() => setLoading(false));
+      if (session?.user && session.access_token) {
+        fetchProfile(session.user, session.access_token).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
@@ -101,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user).finally(() => setLoading(false));
+      if (session?.user && session.access_token) {
+        fetchProfile(session.user, session.access_token).finally(() => setLoading(false));
       } else {
         setProfile(null);
         setSchool(null);

@@ -110,7 +110,7 @@ function SidebarPreview({ color, logoUrl, schoolName }: { color: string; logoUrl
 }
 
 export default function AdminBranding() {
-  const { user, school, schoolId, refreshSchool } = useAuth();
+  const { user, school, schoolId, refreshSchool, session } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,7 +177,7 @@ export default function AdminBranding() {
 
       const res = await fetch(`/api/schools/${schoolId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify(body),
       });
 

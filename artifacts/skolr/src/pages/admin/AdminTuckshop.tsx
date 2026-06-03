@@ -15,11 +15,11 @@ import {
   CheckCircle, Package, Users, DollarSign, ExternalLink, Settings, Loader2,
 } from "lucide-react";
 
-async function apiFetch(url: string, userId: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
+async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
   const res = await fetch(url, {
     ...rest,
-    headers: { "Content-Type": "application/json", "x-user-id": userId, ...(rest.headers ?? {}) },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, ...(rest.headers ?? {}) },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
@@ -74,7 +74,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminTuckshop() {
-  const { profile, school, user } = useAuth();
+  const { profile, school, user, session } = useAuth();
   const qc = useQueryClient();
   const schoolId = school?.id ?? profile?.school_id ?? "";
 
@@ -96,41 +96,41 @@ export default function AdminTuckshop() {
 
   const { data: menus = [] } = useQuery<Menu[]>({
     queryKey: ["tuckshop-menus", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/menus?school_id=${schoolId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/menus?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["tuckshop-orders-admin", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/orders?school_id=${schoolId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/orders?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ["tuckshop-accounts", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/accounts?school_id=${schoolId}`, user?.id ?? ""),
+    queryFn: () => apiFetch(`/api/tuckshop/accounts?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
   const publishMenu = useMutation({
-    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/menu", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/menu", session?.access_token ?? "", { method: "POST", body }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tuckshop-menus"] }); setMenuDialog(false); },
   });
 
   const updateMenu = useMutation({
     mutationFn: ({ id, body }: { id: string; body: unknown }) =>
-      apiFetch(`/api/tuckshop/menu/${id}`, user?.id ?? "", { method: "PATCH", body }),
+      apiFetch(`/api/tuckshop/menu/${id}`, session?.access_token ?? "", { method: "PATCH", body }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tuckshop-menus"] }); setMenuDialog(false); },
   });
 
   const updateOrder = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiFetch(`/api/tuckshop/orders/${id}`, user?.id ?? "", { method: "PATCH", body: { status } }),
+      apiFetch(`/api/tuckshop/orders/${id}`, session?.access_token ?? "", { method: "PATCH", body: { status } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tuckshop-orders-admin"] }),
   });
 
   const topupMutation = useMutation({
-    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/topup", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/topup", session?.access_token ?? "", { method: "POST", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tuckshop-accounts"] });
       setTopupDialog(false);
@@ -182,10 +182,10 @@ export default function AdminTuckshop() {
   }
 
   async function saveTuckshopUrl() {
-    if (!schoolId || !user?.id) return;
+    if (!schoolId || !session?.access_token) return;
     setUrlSaving(true);
     try {
-      await apiFetch(`/api/schools/${schoolId}`, user.id, {
+      await apiFetch(`/api/schools/${schoolId}`, session.access_token, {
         method: "PATCH",
         body: { tuckshop_url: tuckshopUrlInput.trim() || null },
       });
