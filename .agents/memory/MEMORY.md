@@ -1,0 +1,1 @@
+- [api-client-react Vite resolution](api-client-react-vite.md) — package needs both a Vite alias AND workspace export condition to resolve in dev and TypeScript.

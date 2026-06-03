@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
   ShoppingBag, Plus, Trash2, Edit2, Wallet, ClipboardList,
-  CheckCircle, Package, Users, DollarSign,
+  CheckCircle, Package, Users, DollarSign, ExternalLink, Settings, Loader2,
 } from "lucide-react";
 
-async function apiFetch(url: string, userId: string, options?: RequestInit & { body?: unknown }) {
+async function apiFetch(url: string, userId: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
   const res = await fetch(url, {
     ...rest,
@@ -76,7 +76,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminTuckshop() {
   const { profile, school, user } = useAuth();
   const qc = useQueryClient();
-  const schoolId = school?.id ?? profile?.schoolId ?? "";
+  const schoolId = school?.id ?? profile?.school_id ?? "";
 
   const [activeTab, setActiveTab] = useState("menu");
   const [menuDialog, setMenuDialog] = useState(false);
@@ -87,6 +87,12 @@ export default function AdminTuckshop() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [topupAmount, setTopupAmount] = useState("");
   const [topupNote, setTopupNote] = useState("");
+  const [tuckshopUrlInput, setTuckshopUrlInput] = useState("");
+  const [urlSaving, setUrlSaving] = useState(false);
+
+  useEffect(() => {
+    if (school?.tuckshopUrl) setTuckshopUrlInput(school.tuckshopUrl);
+  }, [school]);
 
   const { data: menus = [] } = useQuery<Menu[]>({
     queryKey: ["tuckshop-menus", schoolId],
@@ -107,12 +113,12 @@ export default function AdminTuckshop() {
   });
 
   const publishMenu = useMutation({
-    mutationFn: (body: object) => apiFetch("/api/tuckshop/menu", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/menu", user?.id ?? "", { method: "POST", body }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tuckshop-menus"] }); setMenuDialog(false); },
   });
 
   const updateMenu = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: object }) =>
+    mutationFn: ({ id, body }: { id: string; body: unknown }) =>
       apiFetch(`/api/tuckshop/menu/${id}`, user?.id ?? "", { method: "PATCH", body }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tuckshop-menus"] }); setMenuDialog(false); },
   });
@@ -124,7 +130,7 @@ export default function AdminTuckshop() {
   });
 
   const topupMutation = useMutation({
-    mutationFn: (body: object) => apiFetch("/api/tuckshop/topup", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/topup", user?.id ?? "", { method: "POST", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tuckshop-accounts"] });
       setTopupDialog(false);
@@ -173,6 +179,20 @@ export default function AdminTuckshop() {
       amount_cents: Math.round(parseFloat(topupAmount) * 100),
       description: topupNote || "Admin top-up",
     });
+  }
+
+  async function saveTuckshopUrl() {
+    if (!schoolId || !user?.id) return;
+    setUrlSaving(true);
+    try {
+      await apiFetch(`/api/schools/${schoolId}`, user.id, {
+        method: "PATCH",
+        body: { tuckshop_url: tuckshopUrlInput.trim() || null },
+      });
+      qc.invalidateQueries({ queryKey: ["school", schoolId] });
+    } finally {
+      setUrlSaving(false);
+    }
   }
 
   const pendingOrders = orders.filter(o => o.status === "pending");
@@ -225,6 +245,7 @@ export default function AdminTuckshop() {
             <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="balances">Student Balances</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           {/* ── MENU TAB ── */}
@@ -349,6 +370,58 @@ export default function AdminTuckshop() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* ── SETTINGS TAB ── */}
+          <TabsContent value="settings" className="mt-4">
+            <div className="max-w-lg space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Settings className="h-4 w-4" /> Tuckshop App Link
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-gray-500">
+                    Enter the URL of your school's tuckshop application. Parents and students will see a button to open it directly.
+                  </p>
+                  <div className="space-y-2">
+                    <Label>Tuckshop App URL</Label>
+                    <Input
+                      type="url"
+                      placeholder="https://tuckshop.yourschool.co.za"
+                      value={tuckshopUrlInput}
+                      onChange={e => setTuckshopUrlInput(e.target.value)}
+                    />
+                  </div>
+                  {tuckshopUrlInput && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 flex items-center gap-3">
+                      <ExternalLink className="h-4 w-4 text-blue-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500">Preview link</p>
+                        <a
+                          href={tuckshopUrlInput}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-blue-600 hover:underline truncate block"
+                        >
+                          {tuckshopUrlInput}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  <Button onClick={saveTuckshopUrl} disabled={urlSaving} className="bg-blue-600 hover:bg-blue-700">
+                    {urlSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save Settings
+                  </Button>
+                  {school?.tuckshopUrl && (
+                    <p className="text-xs text-gray-400">
+                      Current saved URL: <span className="font-mono">{school.tuckshopUrl}</span>
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

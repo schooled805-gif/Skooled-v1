@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart, Wallet, Plus, Minus, X, AlertCircle, Receipt } from "lucide-react";
 
-async function apiFetch(url: string, userId: string, options?: RequestInit & { body?: unknown }) {
+async function apiFetch(url: string, userId: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
   const res = await fetch(url, {
     ...rest,
@@ -75,7 +75,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function StudentTuckshop() {
   const { profile, school, user } = useAuth();
   const qc = useQueryClient();
-  const schoolId = school?.id ?? profile?.schoolId ?? "";
+  const schoolId = school?.id ?? profile?.school_id ?? "";
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -115,7 +115,7 @@ export default function StudentTuckshop() {
   });
 
   const placeOrder = useMutation({
-    mutationFn: (body: object) => apiFetch("/api/tuckshop/orders", user?.id ?? "", { method: "POST", body }),
+    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/orders", user?.id ?? "", { method: "POST", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tuckshop-account-student", studentId] });
       qc.invalidateQueries({ queryKey: ["tuckshop-orders-student", studentId] });

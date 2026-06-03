@@ -12,6 +12,7 @@ export const schools = pgTable("schools", {
   logoUrl: text("logo_url"),
   primaryColor: text("primary_color"),
   secondaryColor: text("secondary_color"),
+  tuckshopUrl: text("tuckshop_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
