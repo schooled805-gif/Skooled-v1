@@ -45,9 +45,11 @@ export default function Login() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      const userId = data.user?.id;
-      if (userId) {
-        const res = await fetch('/api/profiles/me', { headers: { 'x-user-id': userId, ...(data.user?.email ? { 'x-user-email': data.user.email } : {}) } });
+      if (data.user?.id) {
+        const token = data.session?.access_token;
+        const res = await fetch('/api/profiles/me', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok) {
           const profile = await res.json();
           setLocation(`/${profile?.role ?? 'parent'}`);

@@ -35,19 +35,24 @@ app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
-// Public routes — strip client-supplied user headers but don't require a token
-app.get("/api/health", stripClientUserHeaders);
-app.get("/api/schools/:id", stripClientUserHeaders);
-app.post("/api/profiles", stripClientUserHeaders);
+// Public routes — strip client-supplied user headers but don't require a token.
+// These are called during signup before a verified session exists.
+const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> = [
+  { method: "GET",  test: p => p === "/health" },
+  { method: "GET",  test: p => /^\/schools(\/[^/]+)?$/.test(p) },
+  { method: "POST", test: p => p === "/profiles" },
+  { method: "POST", test: p => p === "/schools" },
+  { method: "POST", test: p => p === "/parent-student-links" },
+];
 
-// All other /api routes require a verified Supabase JWT
 app.use("/api", (req, res, next) => {
-  // Skip routes already handled above
-  if (
-    (req.method === "GET" && req.path === "/health") ||
-    (req.method === "GET" && /^\/schools\/[^/]+$/.test(req.path)) ||
-    (req.method === "POST" && req.path === "/profiles")
-  ) {
+  const isPublic = PUBLIC_ROUTES.some(
+    r => r.method === req.method && r.test(req.path),
+  );
+  if (isPublic) {
+    // Strip any spoofed identity headers but don't require a token
+    delete req.headers["x-user-id"];
+    delete req.headers["x-user-email"];
     return next();
   }
   return verifySupabaseJwt(req, res, next);

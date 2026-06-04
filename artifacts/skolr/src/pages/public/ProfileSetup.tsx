@@ -19,7 +19,7 @@ interface StudentResult { id: string; full_name: string; grade: string; student_
 
 export default function ProfileSetup() {
   const [, setLocation] = useLocation();
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
   const { toast } = useToast();
 
   // If profile already exists, redirect to portal
@@ -82,13 +82,20 @@ export default function ProfileSetup() {
   const handleSubmit = async () => {
     if (!user) return;
     setSubmitting(true);
+
+    const token = session?.access_token;
+    const authHeaders = (): Record<string, string> => ({
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+
     try {
       let schoolId = selectedSchool?.id ?? null;
 
       if (role === 'admin' && schoolMode === 'create') {
         const r = await fetch('/api/schools', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+          headers: authHeaders(),
           body: JSON.stringify({ name: newSchoolName, address: newSchoolAddress || undefined }),
         });
         if (!r.ok) throw new Error('Failed to create school');
@@ -100,7 +107,7 @@ export default function ProfileSetup() {
 
       const profileRes = await fetch('/api/profiles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        headers: authHeaders(),
         body: JSON.stringify({
           user_id: user.id,
           role,
@@ -116,7 +123,7 @@ export default function ProfileSetup() {
         await Promise.all(selectedChildren.map(child =>
           fetch('/api/parent-student-links', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+            headers: authHeaders(),
             body: JSON.stringify({ parent_user_id: user.id, student_id: child.id, school_id: schoolId }),
           })
         ));

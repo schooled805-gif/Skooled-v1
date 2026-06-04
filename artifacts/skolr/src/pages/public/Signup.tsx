@@ -183,6 +183,15 @@ export default function Signup() {
       }
 
       const userId = authData.user.id;
+      // Use the Bearer token when the session is immediately available
+      // (email confirmation disabled). Falls back to unauthenticated for
+      // email-confirmation-required flows — those routes are public on the API.
+      const accessToken = authData.session?.access_token;
+      const authHeaders = (extra: Record<string, string> = {}): Record<string, string> => ({
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...extra,
+      });
 
       // ── Step 2: Create or resolve school ──────────────────────────────────
       let schoolId: string | null = selectedSchool?.id ?? null;
@@ -190,7 +199,7 @@ export default function Signup() {
       if (role === 'admin' && schoolMode === 'create') {
         const schoolRes = await fetch('/api/schools', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+          headers: authHeaders(),
           body: JSON.stringify({
             name: newSchoolName.trim(),
             address: newSchoolAddress.trim() || undefined,
@@ -212,7 +221,7 @@ export default function Signup() {
       // ── Step 3: Create profile ─────────────────────────────────────────────
       const profileRes = await fetch('/api/profiles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        headers: authHeaders(),
         body: JSON.stringify({
           user_id: userId,
           role,
@@ -244,7 +253,7 @@ export default function Signup() {
         await Promise.all(selectedChildren.map(child =>
           fetch('/api/parent-student-links', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+            headers: authHeaders(),
             body: JSON.stringify({
               parent_user_id: userId,
               student_id: child.id,

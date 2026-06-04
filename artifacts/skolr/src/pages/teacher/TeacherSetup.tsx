@@ -13,7 +13,7 @@ interface SchoolClass { id: string; name: string; grade_level: string | null; te
 interface Subject { id: string; name: string; code: string | null; }
 
 export default function TeacherSetup() {
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -53,12 +53,16 @@ export default function TeacherSetup() {
     if (!user || !profile) return;
     setSubmitting(true);
     try {
+      const token = session?.access_token;
       // Assign teacher to selected classes
       await Promise.all(
         selectedClassIds.map(classId =>
           fetch(`/api/classes/${classId}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({ teacher_id: profile.id }),
           })
         )
