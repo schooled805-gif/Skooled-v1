@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { messages, profiles } from "@workspace/db";
-import { eq, or, and, isNull } from "drizzle-orm";
+import { eq, or, and, isNull, isNotNull } from "drizzle-orm";
 import {
   ListMessagesQueryParams,
   SendMessageBody,
   MarkMessageReadParams,
 } from "@workspace/api-zod";
+import { sendPushNotifications } from "../lib/pushNotifications";
 
 const router = Router();
 
@@ -55,6 +56,41 @@ router.post("/messages", async (req, res) => {
       subjectId: body.subject_id ?? null,
       schoolId: body.school_id,
     }).returning();
+
+    // Notify the recipient (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        const [senderProfile] = await db
+          .select({ fullName: profiles.fullName })
+          .from(profiles)
+          .where(eq(profiles.userId, userId))
+          .limit(1);
+
+        const [recipientProfile] = await db
+          .select({ pushToken: profiles.pushToken })
+          .from(profiles)
+          .where(
+            and(
+              eq(profiles.userId, body.recipient_id),
+              isNotNull(profiles.pushToken),
+            ),
+          )
+          .limit(1);
+
+        if (recipientProfile?.pushToken) {
+          const senderName = senderProfile?.fullName ?? "Someone";
+          const preview = body.body.length > 80 ? body.body.slice(0, 77) + "…" : body.body;
+          await sendPushNotifications([recipientProfile.pushToken], {
+            title: `💬 New message from ${senderName}`,
+            body: preview,
+            data: { type: "message", conversation_with: userId, message_id: msg.id },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    });
+
     res.status(201).json({ ...msg, sender_name: null });
   } catch (err) {
     req.log.error(err);

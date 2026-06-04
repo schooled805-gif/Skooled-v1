@@ -55,39 +55,42 @@ router.post("/announcements", async (req, res) => {
       authorId: userId ?? null,
     }).returning();
 
-    // Send push notifications to school-scoped profiles (fire-and-forget)
-    setImmediate(async () => {
-      try {
-        const audienceType = body.audience_type;
-        const rows = await db
-          .select({ pushToken: profiles.pushToken, role: profiles.role })
-          .from(profiles)
-          .where(
-            and(
-              isNotNull(profiles.pushToken),
-              eq(profiles.schoolId, body.school_id),
-            ),
-          );
+    // Send push notifications only for high-priority announcements (fire-and-forget)
+    const isHighPriority = body.priority === "high" || body.priority === "urgent";
+    if (isHighPriority) {
+      setImmediate(async () => {
+        try {
+          const audienceType = body.audience_type;
+          const rows = await db
+            .select({ pushToken: profiles.pushToken, role: profiles.role })
+            .from(profiles)
+            .where(
+              and(
+                isNotNull(profiles.pushToken),
+                eq(profiles.schoolId, body.school_id),
+              ),
+            );
 
-        const tokens = rows
-          .filter((r) => {
-            if (!r.pushToken) return false;
-            if (audienceType === "all") return true;
-            return r.role === audienceType;
-          })
-          .map((r) => r.pushToken as string);
+          const tokens = rows
+            .filter((r) => {
+              if (!r.pushToken) return false;
+              if (audienceType === "all") return true;
+              return r.role === audienceType;
+            })
+            .map((r) => r.pushToken as string);
 
-        if (tokens.length > 0) {
-          await sendPushNotifications(tokens, {
-            title: `📢 ${body.title}`,
-            body: body.body.length > 120 ? body.body.slice(0, 117) + "…" : body.body,
-            data: { type: "announcement", id: announcement.id },
-          });
+          if (tokens.length > 0) {
+            await sendPushNotifications(tokens, {
+              title: `📢 ${body.title}`,
+              body: body.body.length > 120 ? body.body.slice(0, 117) + "…" : body.body,
+              data: { type: "announcement", id: announcement.id },
+            });
+          }
+        } catch {
+          // Non-fatal
         }
-      } catch {
-        // Non-fatal
-      }
-    });
+      });
+    }
 
     res.status(201).json({ ...announcement, author_name: null });
   } catch (err) {
