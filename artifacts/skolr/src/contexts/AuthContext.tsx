@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   user_id: string;
   role: string;
+  status: string;
   full_name: string;
   email: string;
   school_id: string;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   ListProfilesQueryParams,
   CreateProfileBody,
@@ -19,6 +19,7 @@ function mapProfile(p: Profile) {
     id: p.id,
     user_id: p.userId,
     role: p.role,
+    status: p.status ?? "approved",
     full_name: p.fullName,
     email: p.email,
     phone: p.phone ?? null,
@@ -96,9 +97,13 @@ router.post("/profiles", async (req, res) => {
       return;
     }
 
+    // Admins are auto-approved; teachers/parents join as pending until admin approves.
+    const status = body.role === "admin" ? "approved" : "pending";
+
     const [profile] = await db.insert(profiles).values({
       userId: body.user_id,
       role: body.role,
+      status,
       fullName: body.full_name,
       email: body.email.toLowerCase().trim(),
       phone: body.phone ?? null,
@@ -126,6 +131,41 @@ router.get("/profiles/:id", async (req, res) => {
   try {
     const { id } = GetProfileParams.parse(req.params);
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+    if (!profile) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(mapProfile(profile));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** GET /api/profiles/pending?school_id=... — pending member requests for admin */
+router.get("/profiles/pending", async (req, res) => {
+  try {
+    const schoolId = req.query.school_id as string | undefined;
+    if (!schoolId) { res.status(400).json({ error: "school_id required" }); return; }
+    const rows = await db.select().from(profiles).where(
+      and(eq(profiles.schoolId, schoolId), eq(profiles.status, "pending")),
+    );
+    res.json(rows.map(mapProfile));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** PATCH /api/profiles/:id/status — approve or reject a pending member */
+router.patch("/profiles/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body as { status: string };
+    if (!["approved", "rejected"].includes(status)) {
+      res.status(400).json({ error: "status must be approved or rejected" }); return;
+    }
+    const [profile] = await db.update(profiles)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(profiles.id, id))
+      .returning();
     if (!profile) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapProfile(profile));
   } catch (err) {

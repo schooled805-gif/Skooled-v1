@@ -21,6 +21,7 @@ export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull().unique(),
   role: text("role").notNull(), // parent | teacher | student | admin
+  status: text("status").notNull().default("approved"), // approved | pending | rejected
   fullName: text("full_name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),

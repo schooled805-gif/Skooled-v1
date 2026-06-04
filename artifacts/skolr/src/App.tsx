@@ -10,6 +10,7 @@ import Landing from "@/pages/public/Landing";
 import Login from "@/pages/public/Login";
 import Signup from "@/pages/public/Signup";
 import ProfileSetup from "@/pages/public/ProfileSetup";
+import PendingApproval from "@/pages/public/PendingApproval";
 import ResetPassword from "@/pages/public/ResetPassword";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -49,14 +50,16 @@ import StudentTuckshop from "@/pages/student/StudentTuckshop";
 const queryClient = new QueryClient();
 
 const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, profile } = useAuth();
   const [, setLocation] = useLocation();
 
   React.useEffect(() => {
     if (loading) return;
     if (!user) { setLocation('/login'); return; }
     if (!role) { setLocation('/profile-setup'); return; }
-  }, [loading, user, role]);
+    if (profile?.status === 'pending') { setLocation('/pending-approval'); return; }
+    if (profile?.status === 'rejected') { setLocation('/pending-approval'); return; }
+  }, [loading, user, role, profile]);
 
   if (loading) {
     return (
@@ -70,6 +73,7 @@ const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allo
   }
 
   if (!user || !role) return null;
+  if (profile?.status === 'pending' || profile?.status === 'rejected') return null;
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     return (
@@ -83,15 +87,18 @@ const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allo
 };
 
 const RootRedirect = () => {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, profile } = useAuth();
   const [, setLocation] = useLocation();
 
   React.useEffect(() => {
     if (loading) return;
     if (!user) return;            // not logged in → show landing page
     if (!role) { setLocation('/profile-setup'); return; }
+    if (profile?.status === 'pending' || profile?.status === 'rejected') {
+      setLocation('/pending-approval'); return;
+    }
     setLocation(`/${role}`);      // logged in → go to portal
-  }, [loading, user, role]);
+  }, [loading, user, role, profile]);
 
   if (loading) {
     return (
@@ -112,6 +119,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/profile-setup" component={ProfileSetup} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/pending-approval" component={PendingApproval} />
 
       {/* Admin */}
       <Route path="/admin">
