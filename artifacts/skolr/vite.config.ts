@@ -4,6 +4,16 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+// The Vercel Supabase integration exposes SUPABASE_URL / SUPABASE_ANON_KEY
+// (no VITE_ prefix), but Vite only inlines variables prefixed with VITE_.
+// Bridge them so the client build always has the credentials baked in.
+if (!process.env.VITE_SUPABASE_URL && process.env.SUPABASE_URL) {
+  process.env.VITE_SUPABASE_URL = process.env.SUPABASE_URL;
+}
+if (!process.env.VITE_SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY) {
+  process.env.VITE_SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+}
+
 const rawPort = process.env.PORT;
 const port = rawPort ? Number(rawPort) : 5173;
 
