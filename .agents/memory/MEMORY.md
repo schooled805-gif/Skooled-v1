@@ -1,3 +1,3 @@
 - [api-client-react Vite resolution](api-client-react-vite.md) — package needs both a Vite alias AND workspace export condition to resolve in dev and TypeScript.
 - [Supabase JWT auth pattern](supabase-jwt-auth.md) — API server verifies Bearer tokens via supabaseAdmin.auth.getUser(); never trust x-user-id from clients.
-- [Deployment architecture](deployment-architecture.md) — data is in Replit Postgres (Supabase=auth only); Vercel must serve the esbuild bundle (api/index.mjs→dist/app.mjs), never tsc the monorepo source.
+- [Deployment architecture](deployment-architecture.md) — Vercel prod data is in Supabase Postgres (POSTGRES_URL, txn pooler 6543, TLS); local dev uses Replit DB; Vercel serves esbuild bundle (api/index.mjs), never tsc the monorepo.

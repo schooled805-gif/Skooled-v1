@@ -15,18 +15,41 @@ function resolveConnectionString(): string {
     VERCEL,
   } = process.env;
 
-  // On Vercel, always prefer the Supabase integration's connection string,
-  // even if a stale DATABASE_URL (e.g. Replit's internal DB) is present.
-  if (VERCEL && POSTGRES_URL) return POSTGRES_URL;
+  // Supabase's transaction pooler uses 6543; session pooler/direct use 5432.
+  const fromParts = () => {
+    if (
+      POSTGRES_HOST &&
+      POSTGRES_USER &&
+      POSTGRES_PASSWORD &&
+      POSTGRES_DATABASE
+    ) {
+      const port =
+        process.env.POSTGRES_PORT ||
+        (POSTGRES_HOST.includes("pooler") ? "6543" : "5432");
+      return `postgresql://${POSTGRES_USER}:${encodeURIComponent(
+        POSTGRES_PASSWORD,
+      )}@${POSTGRES_HOST}:${port}/${POSTGRES_DATABASE}?sslmode=require`;
+    }
+    return undefined;
+  };
+
+  // On Vercel, the Replit-internal DATABASE_URL (host `helium`) is unreachable.
+  // Always use the Supabase integration's connection; never fall back to a stale
+  // DATABASE_URL. Fail fast with a clear error if it is missing.
+  if (VERCEL) {
+    const supabase = POSTGRES_URL ?? fromParts();
+    if (supabase) return supabase;
+    throw new Error(
+      "On Vercel, POSTGRES_URL (or POSTGRES_HOST/USER/PASSWORD/DATABASE) must be " +
+        "set by the Supabase integration. The Replit DATABASE_URL is not reachable.",
+    );
+  }
 
   if (DATABASE_URL) return DATABASE_URL;
   if (POSTGRES_URL) return POSTGRES_URL;
 
-  if (POSTGRES_HOST && POSTGRES_USER && POSTGRES_PASSWORD && POSTGRES_DATABASE) {
-    return `postgresql://${POSTGRES_USER}:${encodeURIComponent(
-      POSTGRES_PASSWORD,
-    )}@${POSTGRES_HOST}:5432/${POSTGRES_DATABASE}?sslmode=require`;
-  }
+  const parts = fromParts();
+  if (parts) return parts;
 
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",

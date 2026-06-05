@@ -8,12 +8,34 @@ description: How this monorepo deploys, where data really lives, and the Vercel 
 This project was migrated from a standalone Vercel app into a Replit
 multi-artifact pnpm monorepo. It targets BOTH Replit (autoscale) and Vercel.
 
-## Where data lives (common confusion)
-- App data is in **Replit-managed PostgreSQL** (`DATABASE_URL`, host `helium`),
-  accessed via Drizzle (`lib/db`). Schema is pushed with `drizzle-kit push`.
-- **Supabase is auth-only** (JWT verification via service-role key). It does NOT
-  store the app's data tables. Looking for tables in the Supabase dashboard will
-  show nothing — that is by design.
+## Where data lives
+- **Local Replit dev**: app data in Replit-managed PostgreSQL (`DATABASE_URL`,
+  host `helium`, sslmode=disable), via Drizzle (`lib/db`).
+- **Vercel production**: app data in **Supabase PostgreSQL**, reached through the
+  Vercel Supabase integration's `POSTGRES_URL`. (Data was migrated Replit→Supabase;
+  the Replit DB is NOT reachable from Vercel.)
+- Connection selection lives in `lib/db/src/index.ts > resolveConnectionString()`:
+  on Vercel, `POSTGRES_URL` always wins over any stale `DATABASE_URL`; otherwise
+  `DATABASE_URL` → `POSTGRES_URL` → built from `POSTGRES_*` parts.
+- Supabase still also provides **auth** (JWT verification via service-role key).
+
+## Supabase Postgres connection gotchas
+**Why:** Vercel can't reach Replit's internal DB, so prod data must live in
+Supabase, and Supabase's poolers behave unlike a normal Postgres.
+**How to apply:**
+- TLS is REQUIRED. `lib/db` sets `ssl:{rejectUnauthorized:false}` when the conn
+  string matches `supabase.(co|com)` or `sslmode=require` (Supabase pooler serves
+  a cert that fails default verification).
+- This project's **session pooler (port 5432) is disabled**; only the
+  **transaction pooler (port 6543)** accepts connections. The `POSTGRES_*`-parts
+  fallback infers `6543` when the host contains `pooler` (else 5432); override
+  with `POSTGRES_PORT`.
+- `drizzle-kit push` does NOT work against the transaction pooler (introspection /
+  prepared-statement issues). To apply schema: `drizzle-kit generate` to SQL, then
+  execute the statements via a single long-lived `pg.Client` (split on
+  `--> statement-breakpoint`). The pooler occasionally rejects a *fresh*
+  connection with a bogus "password authentication failed" — reuse one client and
+  retry connects rather than using a Pool that reconnects per query.
 
 ## Vercel build gotcha: "src/routes/*.ts: Emit skipped"
 **Why:** Vercel's `@vercel/node` runs `tsc` on the TypeScript source of any
@@ -49,10 +71,13 @@ Vercel domain. `vercel.json` (repo root):
 - **Root Directory = repository root** (where `/api` and `vercel.json` live), not
   `artifacts/api-server`. Wrong root breaks function discovery + rewrites.
 - Env vars (Vercel exposes these at BOTH build and runtime):
-  - Build-time (vite inlines `VITE_*`): `VITE_SUPABASE_URL`,
-    `VITE_SUPABASE_ANON_KEY`.
-  - Runtime (API function): `DATABASE_URL`, `VITE_SUPABASE_URL`,
-    `SUPABASE_SERVICE_ROLE_KEY` (some routes also read `SUPABASE_URL`).
+  - Build-time (vite inlines `VITE_*`): the Supabase integration only sets
+    `SUPABASE_URL`/`SUPABASE_ANON_KEY` (no `VITE_` prefix), so
+    `artifacts/skolr/vite.config.ts` bridges them to `VITE_SUPABASE_URL`/
+    `VITE_SUPABASE_ANON_KEY` at build. No manual `VITE_*` vars needed on Vercel.
+  - Runtime (API function): DB via `POSTGRES_URL` (Supabase integration),
+    plus `SUPABASE_URL`/`VITE_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+    for auth.
 
 ## Pino in serverless
 `src/lib/logger.ts` disables the pino-pretty transport when
