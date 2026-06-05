@@ -31,14 +31,28 @@ becomes `any`/`{}`), not the cause.
 - `api/index.mjs` (repo root, plain `.mjs` so it is never tsc'd) re-exports the
   bundle: `import app from "../artifacts/api-server/dist/app.mjs"; export default app;`
   An Express app is a `(req,res)` handler, which `@vercel/node` serves directly.
-- `vercel.json` (repo root): `framework:null`, build = `pnpm --filter
-  @workspace/api-server run build`, rewrite `/(.*) → /api`.
+
+## Vercel serves the FULL app (frontend + API), not API-only
+The original standalone Vercel app was the whole product. The `skolr` Vite SPA
+calls the API via same-origin relative `/api/...`, so frontend + API live on one
+Vercel domain. `vercel.json` (repo root):
+- `framework:null`, `installCommand: pnpm install --no-frozen-lockfile`
+- `buildCommand`: builds BOTH — api-server bundle AND `@workspace/skolr` (vite).
+- `outputDirectory: artifacts/skolr/dist/public` (vite's `build.outDir`).
+- rewrites (order matters): `/api/(.*) → /api` (funnels subpaths to the function;
+  Vercel preserves the original req.url so Express routes correctly), then
+  `/(.*) → /index.html` (SPA fallback for wouter client routing). Static assets
+  are served before rewrites; the `/api` function is matched by filesystem.
+- Frontend base path defaults to `/` (BASE_PATH unset) → correct for root domain.
 
 ## Required Vercel dashboard settings (NOT in repo, must be set by user)
 - **Root Directory = repository root** (where `/api` and `vercel.json` live), not
   `artifacts/api-server`. Wrong root breaks function discovery + rewrites.
-- Runtime env vars: `DATABASE_URL`, `VITE_SUPABASE_URL`,
-  `SUPABASE_SERVICE_ROLE_KEY` (some routes also read `SUPABASE_URL`).
+- Env vars (Vercel exposes these at BOTH build and runtime):
+  - Build-time (vite inlines `VITE_*`): `VITE_SUPABASE_URL`,
+    `VITE_SUPABASE_ANON_KEY`.
+  - Runtime (API function): `DATABASE_URL`, `VITE_SUPABASE_URL`,
+    `SUPABASE_SERVICE_ROLE_KEY` (some routes also read `SUPABASE_URL`).
 
 ## Pino in serverless
 `src/lib/logger.ts` disables the pino-pretty transport when
