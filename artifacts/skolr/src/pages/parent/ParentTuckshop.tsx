@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingCart, Wallet, ClipboardList, Plus, Minus, X, AlertCircle } from "lucide-react";
+import { ShoppingCart, Wallet, ClipboardList, Plus, Minus, X, AlertCircle, ExternalLink } from "lucide-react";
 
 async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
@@ -212,17 +212,41 @@ export default function ParentTuckshop() {
         {account && (
           <Card className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-purple-200 text-sm">{activeChildName}'s Tuckshop Balance</p>
                   <p className="text-3xl font-bold mt-1">R {account.balance_display}</p>
                   {account.balance_cents < 500 && (
                     <p className="text-yellow-300 text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3.5 w-3.5" />Low balance — ask the school office to top up
+                      <AlertCircle className="h-3.5 w-3.5" />Low balance — top up to keep ordering
                     </p>
                   )}
                 </div>
-                <Wallet className="h-10 w-10 text-purple-300" />
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <Wallet className="h-8 w-8 text-purple-300" />
+                  {school?.tuckshopUrl ? (
+                    <Button
+                      size="sm"
+                      className="bg-white text-purple-700 hover:bg-purple-50"
+                      onClick={() => {
+                        const raw = school.tuckshopUrl!;
+                        const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                        window.open(href, "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />Top up
+                    </Button>
+                  ) : (
+                    <div className="text-right">
+                      <Button size="sm" disabled className="bg-white/40 text-white cursor-not-allowed">
+                        <ExternalLink className="h-3.5 w-3.5 mr-1" />Top up
+                      </Button>
+                      <p className="text-[10px] text-purple-200 mt-1 max-w-[150px] leading-tight">
+                        Top-up not set up by your school yet
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

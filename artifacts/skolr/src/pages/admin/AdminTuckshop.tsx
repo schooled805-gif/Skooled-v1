@@ -78,7 +78,7 @@ export default function AdminTuckshop() {
   const qc = useQueryClient();
   const schoolId = school?.id ?? profile?.school_id ?? "";
 
-  const [activeTab, setActiveTab] = useState("menu");
+  const [activeTab, setActiveTab] = useState("accounts");
   const [menuDialog, setMenuDialog] = useState(false);
   const [editMenu, setEditMenu] = useState<Menu | null>(null);
   const [weekLabel, setWeekLabel] = useState("");
@@ -205,21 +205,12 @@ export default function AdminTuckshop() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Tuckshop</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage menus, orders and student balances</p>
+            <p className="text-sm text-gray-500 mt-0.5">Manage active accounts, the weekly menu and top-up settings</p>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="p-2 bg-yellow-50 rounded-lg"><ClipboardList className="h-5 w-5 text-yellow-600" /></div>
-              <div>
-                <p className="text-xs text-gray-500">Pending Orders</p>
-                <p className="text-xl font-bold text-gray-900">{pendingOrders.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card>
             <CardContent className="flex items-center gap-4 p-4">
               <div className="p-2 bg-green-50 rounded-lg"><Wallet className="h-5 w-5 text-green-600" /></div>
@@ -242,9 +233,8 @@ export default function AdminTuckshop() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="accounts">Active Accounts</TabsTrigger>
             <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="balances">Student Balances</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -291,66 +281,8 @@ export default function AdminTuckshop() {
             )}
           </TabsContent>
 
-          {/* ── ORDERS TAB ── */}
-          <TabsContent value="orders" className="mt-4">
-            {orders.length === 0 ? (
-              <Card><CardContent className="p-12 text-center text-gray-400">No orders yet</CardContent></Card>
-            ) : (
-              <div className="space-y-3">
-                {orders.map(order => (
-                  <Card key={order.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-700"}`}>
-                              {order.status.toUpperCase()}
-                            </span>
-                            <span className="text-xs text-gray-400">{order.order_date}</span>
-                          </div>
-                          <div className="text-sm text-gray-700">
-                            {order.items.map((i, idx) => (
-                              <span key={idx}>{i.quantity}× {i.name}{idx < order.items.length - 1 ? ", " : ""}</span>
-                            ))}
-                          </div>
-                          <p className="font-bold text-gray-900 mt-1">R {order.total_display}</p>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {order.status === "pending" && (
-                            <Button size="sm" variant="outline" className="text-blue-600 border-blue-200"
-                              onClick={() => updateOrder.mutate({ id: order.id, status: "confirmed" })}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" />Confirm
-                            </Button>
-                          )}
-                          {order.status === "confirmed" && (
-                            <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
-                              onClick={() => updateOrder.mutate({ id: order.id, status: "ready" })}>
-                              <Package className="h-3.5 w-3.5 mr-1" />Mark Ready
-                            </Button>
-                          )}
-                          {order.status === "ready" && (
-                            <Button size="sm" variant="outline" className="text-green-600 border-green-200"
-                              onClick={() => updateOrder.mutate({ id: order.id, status: "collected" })}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" />Collected
-                            </Button>
-                          )}
-                          {(order.status === "pending" || order.status === "confirmed") && (
-                            <Button size="sm" variant="ghost" className="text-red-500"
-                              onClick={() => updateOrder.mutate({ id: order.id, status: "cancelled" })}>
-                              Cancel
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── BALANCES TAB ── */}
-          <TabsContent value="balances" className="mt-4">
+          {/* ── ACTIVE ACCOUNTS TAB ── */}
+          <TabsContent value="accounts" className="mt-4">
             {accounts.length === 0 ? (
               <Card><CardContent className="p-12 text-center text-gray-400">No student tuckshop accounts yet</CardContent></Card>
             ) : (
