@@ -60,7 +60,7 @@ export const ListProfilesResponse = zod.array(ListProfilesResponseItem)
  * @summary Create a user profile (admin)
  */
 export const CreateProfileBody = zod.object({
-  "user_id": zod.string().optional().default(""),
+  "user_id": zod.string(),
   "role": zod.string(),
   "full_name": zod.string(),
   "email": zod.string(),
@@ -185,6 +185,35 @@ export const UpdateStudentResponse = zod.object({
   "full_name": zod.string().optional(),
   "avatar_url": zod.string().nullish(),
   "created_at": zod.string()
+})
+
+
+/**
+ * Returns the class/head teacher and the distinct subject teachers for the given student's class. Only accessible to a parent linked to the student.
+ * @summary List a student's class teacher and subject teachers
+ */
+export const ListStudentTeachersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListStudentTeachersResponse = zod.object({
+  "student_id": zod.string(),
+  "class_id": zod.string().nullish(),
+  "class_name": zod.string().nullish(),
+  "class_teacher": zod.union([zod.object({
+  "teacher_user_id": zod.string(),
+  "teacher_profile_id": zod.string(),
+  "name": zod.string(),
+  "subject_id": zod.string().nullish(),
+  "subject_name": zod.string().nullish()
+}),zod.null()]).optional(),
+  "subject_teachers": zod.array(zod.object({
+  "teacher_user_id": zod.string(),
+  "teacher_profile_id": zod.string(),
+  "name": zod.string(),
+  "subject_id": zod.string().nullish(),
+  "subject_name": zod.string().nullish()
+}))
 })
 
 

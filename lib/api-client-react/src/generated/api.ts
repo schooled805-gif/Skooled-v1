@@ -57,6 +57,7 @@ import type {
   SchoolInput,
   Student,
   StudentInput,
+  StudentTeachers,
   StudentUpdate,
   Subject,
   SubjectInput,
@@ -808,6 +809,84 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getUpdateStudentMutationOptions(options));
     }
+
+export const getListStudentTeachersUrl = (id: string,) => {
+
+
+
+
+  return `/api/students/${id}/teachers`
+}
+
+/**
+ * Returns the class/head teacher and the distinct subject teachers for the given student's class. Only accessible to a parent linked to the student.
+ * @summary List a student's class teacher and subject teachers
+ */
+export const listStudentTeachers = async (id: string, options?: RequestInit): Promise<StudentTeachers> => {
+
+  return customFetch<StudentTeachers>(getListStudentTeachersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudentTeachersQueryKey = (id: string,) => {
+    return [
+    `/api/students/${id}/teachers`
+    ] as const;
+    }
+
+
+export const getListStudentTeachersQueryOptions = <TData = Awaited<ReturnType<typeof listStudentTeachers>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudentTeachers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudentTeachersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudentTeachers>>> = ({ signal }) => listStudentTeachers(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudentTeachers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStudentTeachersQueryResult = NonNullable<Awaited<ReturnType<typeof listStudentTeachers>>>
+export type ListStudentTeachersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List a student's class teacher and subject teachers
+ */
+
+export function useListStudentTeachers<TData = Awaited<ReturnType<typeof listStudentTeachers>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudentTeachers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStudentTeachersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListClassesUrl = (params?: ListClassesParams,) => {
   const normalizedParams = new URLSearchParams();

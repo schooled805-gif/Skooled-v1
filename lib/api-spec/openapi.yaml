@@ -235,6 +235,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Student"
 
+  /students/{id}/teachers:
+    get:
+      operationId: listStudentTeachers
+      tags: [students]
+      summary: List a student's class teacher and subject teachers
+      description: >-
+        Returns the class/head teacher and the distinct subject teachers for the
+        given student's class. Only accessible to a parent linked to the student.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The student's teachers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentTeachers"
+        "403":
+          description: Requesting parent is not linked to this student
+
   # ── CLASSES ──────────────────────────────────────────────────────────────
   /classes:
     get:
@@ -1151,6 +1175,11 @@ components:
         visible_to_student: { type: boolean }
         school_id:    { type: string }
         student_name: { type: ["string", "null"] }
+        grade:        { type: ["string", "null"] }
+        subject:      { type: ["string", "null"] }
+        teacher_name: { type: ["string", "null"] }
+        comments:     { type: ["string", "null"] }
+        score:        { type: ["integer", "null"] }
         created_at:   { type: string }
 
     ReportInput:
@@ -1164,6 +1193,11 @@ components:
         file_url:           { type: string }
         visible_to_student: { type: boolean }
         school_id:          { type: string }
+        grade:              { type: string }
+        subject:            { type: string }
+        teacher_name:       { type: string }
+        comments:           { type: string }
+        score:              { type: integer }
 
     School:
       type: object
@@ -1186,6 +1220,32 @@ components:
         phone:    { type: string }
         email:    { type: string }
         logo_url: { type: string }
+
+    StudentTeacher:
+      type: object
+      required: [teacher_user_id, teacher_profile_id, name]
+      properties:
+        teacher_user_id:    { type: string }
+        teacher_profile_id: { type: string }
+        name:               { type: string }
+        subject_id:         { type: ["string", "null"] }
+        subject_name:       { type: ["string", "null"] }
+
+    StudentTeachers:
+      type: object
+      required: [student_id, subject_teachers]
+      properties:
+        student_id:  { type: string }
+        class_id:    { type: ["string", "null"] }
+        class_name:  { type: ["string", "null"] }
+        class_teacher:
+          anyOf:
+            - $ref: "#/components/schemas/StudentTeacher"
+            - type: "null"
+        subject_teachers:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentTeacher"
 
     ParentStudentLink:
       type: object

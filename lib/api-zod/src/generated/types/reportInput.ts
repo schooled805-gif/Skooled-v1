@@ -14,4 +14,9 @@ export interface ReportInput {
   file_url: string;
   visible_to_student?: boolean;
   school_id: string;
+  grade?: string;
+  subject?: string;
+  teacher_name?: string;
+  comments?: string;
+  score?: number;
 }

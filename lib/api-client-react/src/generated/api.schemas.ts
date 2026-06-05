@@ -327,6 +327,11 @@ export interface ReportInput {
   file_url: string;
   visible_to_student?: boolean;
   school_id: string;
+  grade?: string;
+  subject?: string;
+  teacher_name?: string;
+  comments?: string;
+  score?: number;
 }
 
 export interface School {
@@ -349,6 +354,26 @@ export interface SchoolInput {
   phone?: string;
   email?: string;
   logo_url?: string;
+}
+
+export interface StudentTeacher {
+  teacher_user_id: string;
+  teacher_profile_id: string;
+  name: string;
+  /** @nullable */
+  subject_id?: string | null;
+  /** @nullable */
+  subject_name?: string | null;
+}
+
+export interface StudentTeachers {
+  student_id: string;
+  /** @nullable */
+  class_id?: string | null;
+  /** @nullable */
+  class_name?: string | null;
+  class_teacher?: StudentTeacher | null;
+  subject_teachers: StudentTeacher[];
 }
 
 export interface ParentStudentLink {

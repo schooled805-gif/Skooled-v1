@@ -43,6 +43,8 @@ export * from './school';
 export * from './schoolInput';
 export * from './student';
 export * from './studentInput';
+export * from './studentTeacher';
+export * from './studentTeachers';
 export * from './studentUpdate';
 export * from './subject';
 export * from './subjectInput';

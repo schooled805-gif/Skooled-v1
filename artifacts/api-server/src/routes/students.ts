@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { students, profiles, schools } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { students, profiles, schools, classes, subjects, timetableEntries, parentStudentLinks } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import {
   ListStudentsQueryParams,
   CreateStudentBody,
@@ -189,6 +189,103 @@ router.post("/students/full-create", async (req, res) => {
     } else {
       res.status(500).json({ error: "Internal server error" });
     }
+  }
+});
+
+/** GET /api/students/:id/teachers
+ *  Returns the class/head teacher plus the distinct subject teachers (derived
+ *  from the class timetable) for a student. Only a parent linked to the student
+ *  may call this. Each teacher includes their auth user_id so the caller can
+ *  start a message conversation with them. */
+router.get("/students/:id/teachers", async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const requesterUserId = req.headers["x-user-id"] as string;
+
+    // Authorize: the requesting parent must be linked to this student.
+    const [link] = await db.select().from(parentStudentLinks).where(
+      and(
+        eq(parentStudentLinks.parentUserId, requesterUserId),
+        eq(parentStudentLinks.studentId, studentId),
+      ),
+    ).limit(1);
+    if (!link) { res.status(403).json({ error: "You are not linked to this student" }); return; }
+
+    const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+
+    const classId = student.classId ?? null;
+    if (!classId) {
+      res.json({ student_id: studentId, class_id: null, class_name: null, class_teacher: null, subject_teachers: [] });
+      return;
+    }
+
+    // Class (head) teacher.
+    const [cls] = await db.select({
+      id: classes.id,
+      name: classes.name,
+      teacherId: classes.teacherId,
+      teacher_user_id: profiles.userId,
+      teacher_name: profiles.fullName,
+    }).from(classes)
+      .leftJoin(profiles, eq(classes.teacherId, profiles.id))
+      .where(eq(classes.id, classId))
+      .limit(1);
+
+    const classTeacher = cls?.teacherId && cls.teacher_user_id
+      ? {
+          teacher_user_id: cls.teacher_user_id,
+          teacher_profile_id: cls.teacherId,
+          name: cls.teacher_name ?? "Teacher",
+          subject_id: null,
+          subject_name: null,
+        }
+      : null;
+
+    // Subject teachers derived from the class timetable.
+    const entries = await db.select({
+      teacher_profile_id: timetableEntries.teacherId,
+      subject_id: timetableEntries.subjectId,
+      subject_name: subjects.name,
+      teacher_user_id: profiles.userId,
+      teacher_name: profiles.fullName,
+    }).from(timetableEntries)
+      .leftJoin(subjects, eq(timetableEntries.subjectId, subjects.id))
+      .leftJoin(profiles, eq(timetableEntries.teacherId, profiles.id))
+      .where(eq(timetableEntries.classId, classId));
+
+    const seen = new Set<string>();
+    const subjectTeachers = [] as Array<{
+      teacher_user_id: string;
+      teacher_profile_id: string;
+      name: string;
+      subject_id: string | null;
+      subject_name: string | null;
+    }>;
+    for (const e of entries) {
+      if (!e.teacher_user_id) continue; // teacher has no auth account — can't message
+      const key = `${e.teacher_profile_id}:${e.subject_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      subjectTeachers.push({
+        teacher_user_id: e.teacher_user_id,
+        teacher_profile_id: e.teacher_profile_id,
+        name: e.teacher_name ?? "Teacher",
+        subject_id: e.subject_id ?? null,
+        subject_name: e.subject_name ?? null,
+      });
+    }
+
+    res.json({
+      student_id: studentId,
+      class_id: classId,
+      class_name: cls?.name ?? null,
+      class_teacher: classTeacher,
+      subject_teachers: subjectTeachers,
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
