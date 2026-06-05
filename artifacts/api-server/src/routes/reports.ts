@@ -11,8 +11,19 @@ import fs from "fs";
 
 const router = Router();
 
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// Resolve the uploads directory lazily, never at module load. Creating a
+// directory at import time crashes serverless functions (Vercel's filesystem is
+// read-only except for /tmp), which would take down the entire API at startup.
+const isServerless = !!(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+function getUploadsDir(): string {
+  const dir = isServerless
+    ? path.join("/tmp", "uploads")
+    : path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
 router.post("/reports/upload", async (req, res) => {
   try {
@@ -21,6 +32,7 @@ router.post("/reports/upload", async (req, res) => {
       res.status(400).json({ error: "file_data and file_name are required" });
       return;
     }
+    const uploadsDir = getUploadsDir();
     const buffer = Buffer.from(file_data, "base64");
     const safeName = `${Date.now()}-${file_name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     fs.writeFileSync(path.join(uploadsDir, safeName), buffer);

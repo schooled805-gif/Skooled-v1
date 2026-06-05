@@ -122,3 +122,18 @@ fail per-request (401/503/500). When a Vercel deploy still crashes after fixing
 one module, grep the whole import chain for top-level `throw new`.
 **Vercel needs BOTH:** POSTGRES_URL (DB) AND SUPABASE_URL +
 SUPABASE_SERVICE_ROLE_KEY (auth) set in its own dashboard — DB alone isn't enough.
+
+## pino-pretty transport crashes Vercel at startup
+pino's `transport: { target: "pino-pretty" }` runs in a worker thread
+(thread-stream) resolved by FILE PATH. In a bundled Vercel serverless function
+that worker can't be spawned, so the logger throws at module load →
+FUNCTION_INVOCATION_FAILED on EVERY route (same blank-site symptom as an
+import-time throw). Gate the pretty transport on `!isProduction && !VERCEL &&
+!AWS_LAMBDA_FUNCTION_NAME` — never rely on NODE_ENV alone. Plain JSON pino
+(no transport) is safe on serverless.
+
+## Vercel "Redeploy" reuses the OLD commit
+The Redeploy button on an existing deployment rebuilds THAT deployment's commit,
+NOT the latest GitHub commit. After pushing a fix, you must either let the Git
+integration auto-deploy the new commit, or redeploy from the newest deployment
+in the list. Redeploying the old one just rebuilds the broken code.
