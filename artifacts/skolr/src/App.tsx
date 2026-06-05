@@ -26,6 +26,7 @@ import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminReports from "@/pages/admin/AdminReports";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminTuckshop from "@/pages/admin/AdminTuckshop";
+import AdminFees from "@/pages/admin/AdminFees";
 
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import ParentSchedule from "@/pages/parent/ParentSchedule";
@@ -33,6 +34,7 @@ import ParentApprovals from "@/pages/parent/ParentApprovals";
 import ParentMessages from "@/pages/parent/ParentMessages";
 import ParentReports from "@/pages/parent/ParentReports";
 import ParentTuckshop from "@/pages/parent/ParentTuckshop";
+import ParentAccount from "@/pages/parent/ParentAccount";
 
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
 import TeacherSetup from "@/pages/teacher/TeacherSetup";
@@ -161,6 +163,9 @@ function Router() {
       <Route path="/admin/tuckshop">
         <AuthGuard allowedRoles={['admin']}><AdminTuckshop /></AuthGuard>
       </Route>
+      <Route path="/admin/fees">
+        <AuthGuard allowedRoles={['admin']}><AdminFees /></AuthGuard>
+      </Route>
 
       {/* Parent */}
       <Route path="/parent">
@@ -180,6 +185,9 @@ function Router() {
       </Route>
       <Route path="/parent/tuckshop">
         <AuthGuard allowedRoles={['parent']}><ParentTuckshop /></AuthGuard>
+      </Route>
+      <Route path="/parent/account">
+        <AuthGuard allowedRoles={['parent']}><ParentAccount /></AuthGuard>
       </Route>
 
       {/* Teacher */}

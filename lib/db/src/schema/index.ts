@@ -211,6 +211,53 @@ export const tuckshopTransactions = pgTable("tuckshop_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ── FEE_ACCOUNTS ──────────────────────────────────────────────────────────────
+// Per-student school-fees account. balanceCents is the amount OWED:
+// positive = outstanding balance, negative = credit on the account.
+export const feeAccounts = pgTable("fee_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().unique(),
+  schoolId: uuid("school_id").notNull(),
+  balanceCents: integer("balance_cents").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ── FEE_LEDGER ────────────────────────────────────────────────────────────────
+// Immutable ledger of every change to a fee account. amountCents is the signed
+// delta applied to the balance: a charge is positive (increases what is owed),
+// a payment is negative (reduces what is owed), an adjustment can be either.
+export const feeLedger = pgTable("fee_ledger", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull(),
+  studentId: uuid("student_id").notNull(),
+  schoolId: uuid("school_id").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  type: text("type").notNull(), // charge | adjustment | payment
+  description: text("description"),
+  referenceId: text("reference_id"), // e.g. fee_payments.id for payments
+  createdBy: text("created_by"), // admin user_id, or "system" for provider payments
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── FEE_PAYMENTS ──────────────────────────────────────────────────────────────
+// Tracks an online payment attempt through a provider. The balance is only ever
+// credited from a verified provider webhook, matched back to one of these rows by
+// its unique `reference`. `status` transitions pending -> complete (idempotent).
+export const feePayments = pgTable("fee_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull(),
+  schoolId: uuid("school_id").notNull(),
+  parentUserId: text("parent_user_id"),
+  provider: text("provider").notNull(), // ozow | paystack
+  reference: text("reference").notNull().unique(), // our server-generated unique ref
+  providerReference: text("provider_reference"), // provider's transaction id
+  amountCents: integer("amount_cents").notNull(),
+  status: text("status").notNull().default("pending"), // pending | complete | failed | cancelled
+  ledgerEntryId: uuid("ledger_entry_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
 // ── AUDIT_LOGS ────────────────────────────────────────────────────────────────
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -240,3 +287,6 @@ export type Approval = typeof approvals.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type FeeAccount = typeof feeAccounts.$inferSelect;
+export type FeeLedgerEntry = typeof feeLedger.$inferSelect;
+export type FeePayment = typeof feePayments.$inferSelect;

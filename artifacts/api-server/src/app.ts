@@ -32,7 +32,11 @@ const pinoOptions: Options = {
 app.use(pinoHttp(pinoOptions));
 
 app.use(cors());
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({
+  limit: "5mb",
+  // Capture the raw body so payment webhooks can verify HMAC signatures.
+  verify: (req, _res, buf) => { (req as unknown as { rawBody?: Buffer }).rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
 // Public routes — strip client-supplied user headers but don't require a token.
@@ -45,6 +49,10 @@ const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> 
   { method: "POST", test: p => p === "/profiles" },
   { method: "POST", test: p => p === "/schools" },
   { method: "POST", test: p => p === "/parent-student-links" },
+  // Payment provider webhooks — no bearer token; authenticity is verified
+  // inside the handler via provider signature/hash.
+  { method: "POST", test: p => p === "/fees/webhook/paystack" },
+  { method: "POST", test: p => p === "/fees/webhook/ozow" },
 ];
 
 app.use("/api", (req, res, next) => {

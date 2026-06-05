@@ -15,6 +15,7 @@ import schoolsRouter from "./schools";
 import parentStudentLinksRouter from "./parentStudentLinks";
 import teachersRouter from "./teachers";
 import tuckshopRouter from "./tuckshop";
+import feesRouter from "./fees";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(schoolsRouter);
 router.use(parentStudentLinksRouter);
 router.use(teachersRouter);
 router.use(tuckshopRouter);
+router.use(feesRouter);
 
 export default router;

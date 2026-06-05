@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Palette,
   ShoppingBag,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -40,6 +41,7 @@ const getRoleConfig = (role: string) => {
         hoverBg: 'hover:bg-purple-50',
         links: [
           { name: 'Dashboard', path: '/parent', icon: Home },
+          { name: 'Account', path: '/parent/account', icon: Wallet },
           { name: 'Tuckshop', path: '/parent/tuckshop', icon: ShoppingBag },
           { name: 'Schedule', path: '/parent/schedule', icon: Calendar },
           { name: 'Approvals', path: '/parent/approvals', icon: CheckSquare },
@@ -85,6 +87,7 @@ const getRoleConfig = (role: string) => {
           { name: 'Calendar',      path: '/admin/calendar',     icon: CalendarDays },
           { name: 'Events',        path: '/admin/events',       icon: Megaphone },
           { name: 'Tuckshop',      path: '/admin/tuckshop',     icon: ShoppingBag },
+          { name: 'Fees',          path: '/admin/fees',         icon: Wallet },
           { name: 'Approvals',     path: '/admin/approvals',    icon: CheckSquare },
           { name: 'Reports',       path: '/admin/reports',      icon: FileText },
           { name: 'Announcements', path: '/admin/announcements',icon: Megaphone },
