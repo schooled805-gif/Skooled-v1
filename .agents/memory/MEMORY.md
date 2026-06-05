@@ -1,5 +1,5 @@
 - [api-client-react Vite resolution](api-client-react-vite.md) — package needs both a Vite alias AND workspace export condition to resolve in dev and TypeScript.
 - [Supabase JWT auth pattern](supabase-jwt-auth.md) — API server verifies Bearer tokens via supabaseAdmin.auth.getUser(); never trust x-user-id from clients.
-- [Deployment architecture](deployment-architecture.md) — Vercel prod data is in Supabase Postgres (POSTGRES_URL, txn pooler 6543, TLS); local dev uses Replit DB; Vercel serves esbuild bundle (api/index.mjs), never tsc the monorepo.
-- [Auth: invite-only teachers & signup dup-email](auth-invite-only-and-signup.md) — teachers are admin-invite-only (enforce server-side, not just UI); signup must preflight email-exists before Supabase signUp.
-- [Vercel lib/db import-time crash](deployment-architecture.md) — never throw at module load; opaque FUNCTION_INVOCATION_FAILED kills frontend+API. Fail at query time; allow external DATABASE_URL fallback on Vercel.
+- [Deployment architecture](deployment-architecture.md) — Vercel uses Supabase Postgres + esbuild bundle; local dev uses Replit DB; never tsc the monorepo.
+- [Auth: invite-only teachers & signup dup-email](auth-invite-only-and-signup.md) — teachers are admin-invite-only (enforce server-side); signup must preflight email-exists.
+- [Vercel import-time crash](deployment-architecture.md) — no module on the Vercel path may throw at load; it kills frontend+API. Defer to request time.

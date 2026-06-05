@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { supabaseAdmin } from "../lib/supabase";
+import { supabaseAdmin, supabaseConfigured } from "../lib/supabase";
 
 /**
  * Verifies the Supabase Bearer JWT from the Authorization header.
@@ -15,6 +15,14 @@ export async function verifySupabaseJwt(
   // Strip any client-supplied x-user-id — never trust it directly
   delete req.headers["x-user-id"];
   delete req.headers["x-user-email"];
+
+  if (!supabaseConfigured) {
+    res.status(503).json({
+      error:
+        "Authentication is not configured on the server. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    });
+    return;
+  }
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {

@@ -111,3 +111,14 @@ site because the two environments are wholly separate.
 (transaction pooler), db `postgres`, TLS required. The username MUST carry the
 `.<project_ref>` tenant suffix or the pooler returns "Invalid format for user
 or db_name" / "password authentication failed for user postgres".
+
+## Import-time throws are forbidden in ANY module on the Vercel path
+The lib/db crash had a TWIN in api-server/lib/supabase.ts (threw when
+SUPABASE_URL/SERVICE_ROLE_KEY missing). Same symptom: FUNCTION_INVOCATION_FAILED
+on every /api/* route + blank SPA. Rule: NO module reachable from the Vercel
+bundle entry (api/index.mjs → app.mjs → routes → middleware → libs) may throw at
+module load on missing config. Log + use a placeholder/`*Configured` flag, then
+fail per-request (401/503/500). When a Vercel deploy still crashes after fixing
+one module, grep the whole import chain for top-level `throw new`.
+**Vercel needs BOTH:** POSTGRES_URL (DB) AND SUPABASE_URL +
+SUPABASE_SERVICE_ROLE_KEY (auth) set in its own dashboard — DB alone isn't enough.
