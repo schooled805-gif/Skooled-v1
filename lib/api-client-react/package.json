@@ -6,7 +6,6 @@
   "exports": {
     ".": {
       "workspace": "./src/index.ts",
-      "import": "./dist/index.js",
       "default": "./src/index.ts"
     }
   },

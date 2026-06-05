@@ -201,6 +201,11 @@ async function downloadFile(url, outputPath) {
     const response = await fetch(url, { signal: controller.signal });
 
     if (!response.ok) {
+      let body = "";
+      try {
+        body = await response.text();
+      } catch {}
+      if (body) console.error(`Metro error body:\n${body.slice(0, 3000)}`);
       throw new Error(`HTTP ${response.status}`);
     }
 

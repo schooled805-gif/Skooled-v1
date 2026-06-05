@@ -57,6 +57,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "expo-notifications": "^56.0.15"
+    "expo-notifications": "~0.32.17"
   }
 }
