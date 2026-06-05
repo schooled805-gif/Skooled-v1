@@ -97,3 +97,17 @@ external (non-`helium`/non-`*.replit.*`) DATABASE_URL; if nothing is usable,
 log and return undefined + use a harmless placeholder Pool. Keep the
 non-Vercel order DATABASE_URL → POSTGRES_URL → parts so Replit dev/deploy is
 unaffected.
+
+## Vercel env is SEPARATE from Replit secrets
+Vercel deploys from the GitHub repo (main branch) and has its OWN environment
+variables — it CANNOT read Replit Secrets. So a DB connection added in Replit
+(SUPABASE_DB_URL etc.) does nothing for the live Vercel site. To fix a crashed
+Vercel deploy you must set the connection string IN THE VERCEL DASHBOARD
+(Settings → Environment Variables) as `POSTGRES_URL`, then redeploy.
+**Why:** repeated confusion — fixing the Replit secret never fixed the Vercel
+site because the two environments are wholly separate.
+**Supabase pooler connection identity** (non-secret): user
+`postgres.<project_ref>`, host `aws-1-eu-west-2.pooler.supabase.com`, port 6543
+(transaction pooler), db `postgres`, TLS required. The username MUST carry the
+`.<project_ref>` tenant suffix or the pooler returns "Invalid format for user
+or db_name" / "password authentication failed for user postgres".
