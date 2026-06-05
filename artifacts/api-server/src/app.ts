@@ -38,8 +38,9 @@ app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 // Public routes — strip client-supplied user headers but don't require a token.
 // These are called during signup before a verified session exists.
 const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> = [
-  { method: "GET",  test: p => p === "/health" },
+  { method: "GET",  test: p => p === "/health" || p === "/healthz" },
   { method: "GET",  test: p => /^\/schools(\/[^/]+)?$/.test(p) },
+  { method: "GET",  test: p => p === "/students/lookup" },
   { method: "POST", test: p => p === "/profiles" },
   { method: "POST", test: p => p === "/schools" },
   { method: "POST", test: p => p === "/parent-student-links" },

@@ -28,7 +28,7 @@ export default function AdminUsers() {
   const create = useCreateProfile();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'teacher', user_id: '', phone: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'teacher', phone: '' });
 
   const filtered = (profiles ?? []).filter(p =>
     p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -37,12 +37,12 @@ export default function AdminUsers() {
 
   const handleCreate = () => {
     if (!schoolId) return;
-    create.mutate({ data: { ...form, school_id: schoolId } }, {
+    create.mutate({ data: { ...form, school_id: schoolId, user_id: '' } }, {
       onSuccess: () => {
         toast({ title: 'User profile created' });
         qc.invalidateQueries({ queryKey: getListProfilesQueryKey() });
         setOpen(false);
-        setForm({ full_name: '', email: '', role: 'teacher', user_id: '', phone: '' });
+        setForm({ full_name: '', email: '', role: 'teacher', phone: '' });
       },
       onError: (err: any) => {
         const msg: string =
@@ -133,10 +133,6 @@ export default function AdminUsers() {
             <div className="space-y-1">
               <Label>Email</Label>
               <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@school.ac" data-testid="input-email" />
-            </div>
-            <div className="space-y-1">
-              <Label>Supabase User ID</Label>
-              <Input value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} placeholder="UUID from Supabase Auth" data-testid="input-user-id" />
             </div>
             <div className="space-y-1">
               <Label>Role</Label>

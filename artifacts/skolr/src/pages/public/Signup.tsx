@@ -92,10 +92,9 @@ export default function Signup() {
   const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('join');
   const [loadingSchools, setLoadingSchools] = useState(false);
 
-  // Children state
-  const [studentSearch, setStudentSearch] = useState('');
-  const [allStudents, setAllStudents] = useState<StudentResult[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  // Children state — parent enters student numbers to verify each child
+  const [studentNumberInput, setStudentNumberInput] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
   const [selectedChildren, setSelectedChildren] = useState<StudentResult[]>([]);
 
   // Submission
@@ -115,34 +114,30 @@ export default function Signup() {
     }
   }, [step, role]);
 
-  // Load students when parent selects a school and reaches step 3
-  useEffect(() => {
-    if (step === 3 && selectedSchool) {
-      setLoadingStudents(true);
-      fetch(`/api/students?school_id=${selectedSchool.id}`)
-        .then(r => r.json())
-        .then(data => setAllStudents(Array.isArray(data) ? data : []))
-        .catch(() => {})
-        .finally(() => setLoadingStudents(false));
+  const lookupStudent = async () => {
+    const num = studentNumberInput.trim();
+    if (!num || !selectedSchool) return;
+    if (selectedChildren.some(c => c.student_number?.toLowerCase() === num.toLowerCase())) {
+      toast({ title: 'Already added', description: `Student ${num} is already on the list` });
+      return;
     }
-  }, [step, selectedSchool]);
+    setLookingUp(true);
+    try {
+      const res = await fetch(`/api/students/lookup?school_id=${selectedSchool.id}&student_number=${encodeURIComponent(num)}`);
+      if (!res.ok) { toast({ title: 'Not found', description: 'No student with that ID was found at this school. Please check with your school admin.', variant: 'destructive' }); return; }
+      const student: StudentResult = await res.json();
+      setSelectedChildren(prev => [...prev, student]);
+      setStudentNumberInput('');
+    } catch {
+      toast({ title: 'Lookup failed', description: 'Could not search. Please try again.', variant: 'destructive' });
+    } finally { setLookingUp(false); }
+  };
 
   const filteredSchools = schools.filter(s =>
     s.name.toLowerCase().includes(schoolSearch.toLowerCase())
   );
 
-  const filteredStudents = allStudents.filter(s =>
-    s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
-    s.student_number?.toLowerCase().includes(studentSearch.toLowerCase())
-  );
-
-  const toggleChild = (student: StudentResult) => {
-    setSelectedChildren(prev =>
-      prev.some(c => c.id === student.id)
-        ? prev.filter(c => c.id !== student.id)
-        : [...prev, student]
-    );
-  };
+  const removeChild = (id: string) => setSelectedChildren(prev => prev.filter(c => c.id !== id));
 
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
@@ -542,78 +537,73 @@ export default function Signup() {
             <>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-purple-600" /> Select Your Children
+                  <GraduationCap className="h-5 w-5 text-purple-600" /> Link Your Children
                 </CardTitle>
                 <CardDescription>
-                  Search for your child's name as registered at <strong>{selectedSchool?.name}</strong>
+                  Enter each child's student ID as provided by <strong>{selectedSchool?.name}</strong>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="p-3 bg-purple-50 rounded-lg border border-purple-100 text-sm text-purple-700">
+                  Your school admin will give you each child's student ID number. Enter it below to verify and link your child.
+                </div>
+
                 {selectedChildren.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Children linked</p>
                     {selectedChildren.map(c => (
-                      <Badge key={c.id} className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer gap-1" onClick={() => toggleChild(c)}>
-                        {c.full_name} <X className="h-3 w-3" />
-                      </Badge>
+                      <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-purple-50 border border-purple-200">
+                        <div className="w-7 h-7 rounded-full bg-purple-200 flex items-center justify-center shrink-0 text-xs font-bold text-purple-700">
+                          {c.full_name?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-gray-900">{c.full_name}</p>
+                          <p className="text-xs text-gray-500">Grade {c.grade} • ID: {c.student_number}</p>
+                        </div>
+                        <button onClick={() => removeChild(c.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
 
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    className="pl-9"
-                    placeholder="Search by name or student number…"
-                    value={studentSearch}
-                    onChange={e => setStudentSearch(e.target.value)}
-                    data-testid="input-student-search"
-                  />
+                <div className="space-y-2">
+                  <Label>Student ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. STU-12345"
+                      value={studentNumberInput}
+                      onChange={e => setStudentNumberInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && lookupStudent()}
+                      data-testid="input-student-number"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={lookupStudent}
+                      disabled={!studentNumberInput.trim() || lookingUp}
+                      className="shrink-0"
+                      data-testid="button-lookup-student"
+                    >
+                      {lookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400">Add multiple children by looking up each ID separately</p>
                 </div>
-
-                {loadingStudents ? (
-                  <div className="flex justify-center py-6"><Loader2 className="animate-spin h-5 w-5 text-purple-500" /></div>
-                ) : filteredStudents.length === 0 ? (
-                  <div className="text-center py-4">
-                    <GraduationCap className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">
-                      {studentSearch ? 'No students match your search' : 'No students found at this school yet'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto">
-                    {filteredStudents.map(student => {
-                      const selected = selectedChildren.some(c => c.id === student.id);
-                      return (
-                        <button
-                          key={student.id}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${selected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'}`}
-                          onClick={() => toggleChild(student)}
-                          data-testid={`student-option-${student.id}`}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 text-sm font-bold text-purple-600">
-                            {student.full_name?.[0]?.toUpperCase() ?? '?'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-gray-900">{student.full_name}</p>
-                            <p className="text-xs text-gray-400">{student.grade}{student.student_number ? ` • #${student.student_number}` : ''}</p>
-                          </div>
-                          {selected && <Check className="h-4 w-4 text-purple-600 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
 
                 <div className="flex gap-2 pt-1">
                   <Button variant="outline" onClick={prevStep} className="flex-1"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
                   <Button
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={submitting || selectedChildren.length === 0}
                     className="flex-1 bg-purple-600 hover:bg-purple-700"
                     data-testid="button-create-account"
                   >
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    {selectedChildren.length > 0 ? `Create Account & Link ${selectedChildren.length} Child${selectedChildren.length !== 1 ? 'ren' : ''}` : 'Create Account'}
+                    {selectedChildren.length > 0
+                      ? `Create Account & Link ${selectedChildren.length} Child${selectedChildren.length !== 1 ? 'ren' : ''}`
+                      : 'Add at least one child'}
                   </Button>
                 </div>
               </CardContent>

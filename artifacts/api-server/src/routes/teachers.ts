@@ -39,7 +39,7 @@ router.post("/teachers/invite", async (req, res) => {
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (supabaseUrl && serviceKey) {
       try {
-        const inviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
+        const inviteRes = await fetch(`${supabaseUrl}/auth/v1/admin/invite`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -60,7 +60,7 @@ export const ListProfilesResponse = zod.array(ListProfilesResponseItem)
  * @summary Create a user profile (admin)
  */
 export const CreateProfileBody = zod.object({
-  "user_id": zod.string(),
+  "user_id": zod.string().optional().default(""),
   "role": zod.string(),
   "full_name": zod.string(),
   "email": zod.string(),

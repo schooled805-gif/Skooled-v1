@@ -12,6 +12,33 @@ import {
 
 const router = Router();
 
+/** GET /api/students/lookup?school_id=...&student_number=...
+ *  Public endpoint — used during parent signup to verify a child by student number.
+ *  Returns only safe fields (no DOB, no profile_id). */
+router.get("/students/lookup", async (req, res) => {
+  try {
+    const { school_id, student_number } = req.query as Record<string, string>;
+    if (!school_id || !student_number) {
+      res.status(400).json({ error: "school_id and student_number are required" }); return;
+    }
+    const rows = await db.select({
+      id: students.id,
+      school_id: students.schoolId,
+      grade: students.grade,
+      student_number: students.studentNumber,
+      full_name: profiles.fullName,
+    }).from(students)
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(eq(students.schoolId, school_id));
+    const match = rows.find(r => r.student_number?.toLowerCase() === student_number.toLowerCase());
+    if (!match) { res.status(404).json({ error: "No student found with that ID at this school" }); return; }
+    res.json(match);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/students", async (req, res) => {
   try {
     const query = ListStudentsQueryParams.parse(req.query);

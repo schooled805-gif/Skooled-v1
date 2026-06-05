@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -97,11 +98,18 @@ router.post("/profiles", async (req, res) => {
       return;
     }
 
-    // Admins are auto-approved; teachers/parents join as pending until admin approves.
-    const status = body.role === "admin" ? "approved" : "pending";
+    // Admins and parents are auto-approved.
+    // Teachers who self-register are pending until an admin approves them.
+    const status = (body.role === "admin" || body.role === "parent" || body.role === "student")
+      ? "approved"
+      : "pending";
+
+    // If no user_id is provided, generate a placeholder so the admin can
+    // create profiles for users before they log in for the first time.
+    const userId = body.user_id?.trim() || randomUUID();
 
     const [profile] = await db.insert(profiles).values({
-      userId: body.user_id,
+      userId,
       role: body.role,
       status,
       fullName: body.full_name,

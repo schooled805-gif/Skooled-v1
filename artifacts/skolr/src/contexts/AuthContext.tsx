@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 
 interface Profile {
   id: string;
@@ -87,6 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
     }
   };
+
+  // Wire the API client's auth getter so every generated hook sends the Bearer token.
+  useEffect(() => {
+    setAuthTokenGetter(() =>
+      supabase.auth.getSession().then(({ data: { session } }) => session?.access_token ?? null),
+    );
+    return () => setAuthTokenGetter(null);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
