@@ -178,7 +178,6 @@ export default function ProfileSetup() {
               <CardContent className="space-y-3">
                 {([
                   { r: 'parent' as Role, label: 'Parent / Guardian', desc: "Track your child's progress and messages", Icon: Users, color: 'purple' },
-                  { r: 'teacher' as Role, label: 'Teacher', desc: 'Manage classes and communicate with parents', Icon: BookOpen, color: 'emerald' },
                   { r: 'admin' as Role, label: 'School Administrator', desc: 'Set up and manage your school on Skolr', Icon: Shield, color: 'blue' },
                 ] as const).map(({ r, label, desc, Icon, color }) => (
                   <button
@@ -196,6 +195,16 @@ export default function ProfileSetup() {
                     {role === r && <Check className={`h-5 w-5 text-${color}-600 ml-auto shrink-0`} />}
                   </button>
                 ))}
+
+                <div className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 opacity-75 cursor-not-allowed">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                    <BookOpen className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-500">Teacher</p>
+                    <p className="text-sm text-gray-400">Teachers are added by their school administrator — check your email for an invitation</p>
+                  </div>
+                </div>
                 <Button className="w-full mt-2" disabled={!role} onClick={() => setStep(1)}>
                   Continue <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>

@@ -23,18 +23,13 @@ router.post("/teachers/invite", async (req, res) => {
       return;
     }
 
-    const placeholderUserId = randomUUID();
-    const [profile] = await db.insert(profiles).values({
-      userId: placeholderUserId,
-      role: "teacher",
-      fullName: full_name.trim(),
-      email: normalizedEmail,
-      phone: phone?.trim() || null,
-      schoolId: school_id || null,
-    }).returning();
-
-    // Send Supabase invite email — check both SUPABASE_URL and VITE_SUPABASE_URL
+    // Send the Supabase invite email FIRST so we can link the teacher's profile
+    // to the real Supabase user id it returns. This way the teacher is matched by
+    // user_id on their very first login and is never pushed into the
+    // "create account" flow. Falls back to a placeholder id (claimed later by the
+    // email-based fallback in /profiles/me) when the invite can't be sent.
     let invited = false;
+    let invitedUserId: string | null = null;
     const supabaseUrl = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (supabaseUrl && serviceKey) {
@@ -52,7 +47,12 @@ router.post("/teachers/invite", async (req, res) => {
           }),
         });
         invited = inviteRes.ok;
-        if (!inviteRes.ok) {
+        if (inviteRes.ok) {
+          const inviteData: any = await inviteRes.json().catch(() => ({}));
+          if (typeof inviteData?.id === "string" && inviteData.id) {
+            invitedUserId = inviteData.id;
+          }
+        } else {
           const errBody = await inviteRes.json().catch(() => ({}));
           req.log.warn({ status: inviteRes.status, body: errBody }, "Supabase invite failed");
         }
@@ -60,6 +60,15 @@ router.post("/teachers/invite", async (req, res) => {
         req.log.warn(e, "Supabase invite fetch error");
       }
     }
+
+    const [profile] = await db.insert(profiles).values({
+      userId: invitedUserId ?? randomUUID(),
+      role: "teacher",
+      fullName: full_name.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || null,
+      schoolId: school_id || null,
+    }).returning();
 
     res.status(201).json({
       profile: {

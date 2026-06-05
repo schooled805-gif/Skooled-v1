@@ -41,6 +41,7 @@ const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> 
   { method: "GET",  test: p => p === "/health" || p === "/healthz" },
   { method: "GET",  test: p => /^\/schools(\/[^/]+)?$/.test(p) },
   { method: "GET",  test: p => p === "/students/lookup" },
+  { method: "GET",  test: p => p === "/profiles/email-exists" },
   { method: "POST", test: p => p === "/profiles" },
   { method: "POST", test: p => p === "/schools" },
   { method: "POST", test: p => p === "/parent-student-links" },

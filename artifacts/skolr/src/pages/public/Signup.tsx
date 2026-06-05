@@ -151,6 +151,26 @@ export default function Signup() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // ── Step 0: Pre-flight — reject an already-registered email up front ───
+      // Every real user has a profile row, so this catches existing admins,
+      // parents and admin-invited teachers with one clear message and avoids
+      // creating an orphaned Supabase auth user.
+      try {
+        const existsRes = await fetch(`/api/profiles/email-exists?email=${encodeURIComponent(normalizedEmail)}`);
+        if (existsRes.ok) {
+          const { exists } = await existsRes.json();
+          if (exists) {
+            throw new Error('An account with this email address already exists. Please sign in instead.');
+          }
+        }
+      } catch (preflightErr: any) {
+        // Re-throw our own "already exists" message; ignore network errors so a
+        // transient check failure doesn't block legitimate signups.
+        if (preflightErr?.message?.includes('already exists')) throw preflightErr;
+      }
+
       // ── Step 1: Create Supabase auth account ──────────────────────────────
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,

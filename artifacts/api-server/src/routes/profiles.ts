@@ -57,6 +57,28 @@ router.get("/profiles/me", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/profiles/email-exists?email=... — public pre-flight check used by the
+ * signup form so it can reject an already-registered email with a clear message
+ * BEFORE creating a Supabase auth user (which would otherwise be orphaned).
+ * Must be declared before "/profiles/:id" so it isn't captured as an id.
+ */
+router.get("/profiles/email-exists", async (req, res) => {
+  try {
+    const email = (req.query.email as string | undefined)?.trim().toLowerCase();
+    if (!email) { res.status(400).json({ error: "email is required" }); return; }
+    const [existing] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.email, email))
+      .limit(1);
+    res.json({ exists: !!existing });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/profiles", async (req, res) => {
   try {
     const query = ListProfilesQueryParams.parse(req.query);
@@ -73,6 +95,17 @@ router.get("/profiles", async (req, res) => {
 router.post("/profiles", async (req, res) => {
   try {
     const body = CreateProfileBody.parse(req.body);
+
+    // Invite-only roles: teachers are created exclusively by a school admin via
+    // POST /teachers/invite. This endpoint is public (used during signup), so we
+    // must reject self-registration of a teacher here — the UI hiding the option
+    // is not a security control.
+    if (body.role === "teacher") {
+      res.status(403).json({
+        error: "Teacher accounts are created by your school administrator. Please ask them to invite you.",
+      });
+      return;
+    }
 
     // Check for duplicate email
     const [existing] = await db
