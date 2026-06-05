@@ -32,9 +32,13 @@ function resolveConnectionString(): string | undefined {
       const port =
         process.env.POSTGRES_PORT ||
         (POSTGRES_HOST.includes("pooler") ? "6543" : "5432");
+      // Note: we deliberately do NOT append `?sslmode=require`. Modern pg
+      // (>=8.20) treats `sslmode=require` as `verify-full`, which rejects
+      // Supabase's pooler certificate ("self-signed certificate in chain").
+      // SSL is instead enabled via the Pool `ssl` option below.
       return `postgresql://${POSTGRES_USER}:${encodeURIComponent(
         POSTGRES_PASSWORD,
-      )}@${POSTGRES_HOST}:${port}/${POSTGRES_DATABASE}?sslmode=require`;
+      )}@${POSTGRES_HOST}:${port}/${POSTGRES_DATABASE}`;
     }
     return undefined;
   };
@@ -68,13 +72,32 @@ function resolveConnectionString(): string | undefined {
   return undefined;
 }
 
-const connectionString = resolveConnectionString();
+const rawConnectionString = resolveConnectionString();
 
 // Supabase (and most hosted Postgres) require TLS; Replit's internal DB does not.
+// Only TLS-requiring sslmodes count — `sslmode=disable`/`allow` must NOT enable
+// SSL (Replit's helium DB uses `sslmode=disable` and rejects SSL connections).
 const requiresSsl =
-  !!connectionString &&
-  (/supabase\.(co|com)/.test(connectionString) ||
-    /sslmode=require/.test(connectionString));
+  !!rawConnectionString &&
+  (/supabase\.(co|com)/.test(rawConnectionString) ||
+    /sslmode=(require|prefer|verify-ca|verify-full)/i.test(rawConnectionString));
+
+// Strip any `sslmode` query param from the connection string. Modern pg (>=8.20)
+// treats `sslmode=require` as `verify-full`, which performs strict certificate
+// verification and rejects Supabase's pooler cert with "self-signed certificate
+// in certificate chain" — breaking EVERY query on Vercel. We enable TLS via the
+// explicit Pool `ssl: { rejectUnauthorized: false }` option instead, which is the
+// correct posture for Supabase's managed certs.
+function stripSslMode(url: string): string {
+  return url
+    .replace(/([?&])sslmode=[^&]*/gi, "$1")
+    .replace(/&&+/g, "&")
+    .replace(/[?&]+$/g, "")
+    .replace(/\?&/, "?");
+}
+const connectionString = rawConnectionString
+  ? stripSslMode(rawConnectionString)
+  : undefined;
 
 // Never throw at module load: a missing/invalid connection must surface as a
 // clean per-request error (caught by route handlers), not a serverless

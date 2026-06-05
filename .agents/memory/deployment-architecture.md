@@ -137,3 +137,15 @@ The Redeploy button on an existing deployment rebuilds THAT deployment's commit,
 NOT the latest GitHub commit. After pushing a fix, you must either let the Git
 integration auto-deploy the new commit, or redeploy from the newest deployment
 in the list. Redeploying the old one just rebuilds the broken code.
+
+## pg >=8.20 treats sslmode=require as verify-full → rejects Supabase cert
+With modern node-postgres, putting `?sslmode=require` in the connection string is
+interpreted as `verify-full` (strict cert verification) and FAILS against
+Supabase's pooler with "self-signed certificate in certificate chain", breaking
+EVERY query on Vercel (clean 500s, not a startup crash). Fix: NEVER put sslmode in
+the connection string; strip it, and enable TLS only via the Pool option
+`ssl: { rejectUnauthorized: false }`. Dev (Replit helium, no TLS) is unaffected,
+so this bug is invisible locally and only shows up against Supabase.
+Supabase connection must use the TRANSACTION POOLER (host *.pooler.supabase.com,
+port 6543, user postgres.<projectref>) — the direct host is IPv6-only and
+unreachable from Vercel serverless.
