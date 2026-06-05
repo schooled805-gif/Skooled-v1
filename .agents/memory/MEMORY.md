@@ -3,4 +3,5 @@
 - [Deployment architecture](deployment-architecture.md) — Vercel uses Supabase Postgres + esbuild bundle; local dev uses Replit DB; never tsc the monorepo.
 - [Auth: invite-only teachers & signup dup-email](auth-invite-only-and-signup.md) — teachers are admin-invite-only (enforce server-side); signup must preflight email-exists.
 - [Vercel import-time crash](deployment-architecture.md) — no module on the Vercel path may throw at load; it kills frontend+API. Defer to request time.
+- [Fee/payment webhook integrity](fees-payment-webhooks.md) — credit only on verified webhook (Paystack HMAC over rawBody, Ozow SHA512); claim+ledger+atomic balance in one tx.
 - [API endpoint workflow](api-endpoint-workflow.md) — edit openapi.yaml → run api-spec codegen → restart api-server (esbuild one-shot); messages recipient_id is auth user_id, not profiles.id.
