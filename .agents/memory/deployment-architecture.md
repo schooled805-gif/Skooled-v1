@@ -83,3 +83,17 @@ Vercel domain. `vercel.json` (repo root):
 `src/lib/logger.ts` disables the pino-pretty transport when
 `NODE_ENV==="production"`, so prod logs JSON to stdout with no worker threads —
 the emitted `dist/pino-*.mjs` worker files are not needed at runtime in prod.
+
+## Never throw at module load in lib/db (Vercel crash class)
+`lib/db` resolves the connection string at import time. If that code THROWS
+(e.g. "On Vercel POSTGRES_URL must be set"), it crashes the entire Vercel
+serverless function as `FUNCTION_INVOCATION_FAILED` on EVERY `/api/*` route —
+which also blanks the SPA home page (it hangs on `/api/profiles/me`). So a DB
+misconfig must fail at *query time* (clean per-request 500), never at import.
+**Why:** a single import-time throw takes down frontend + API together and
+gives an opaque error with no diagnostic.
+**How to apply:** on Vercel, prefer POSTGRES_URL/POSTGRES_* but fall back to an
+external (non-`helium`/non-`*.replit.*`) DATABASE_URL; if nothing is usable,
+log and return undefined + use a harmless placeholder Pool. Keep the
+non-Vercel order DATABASE_URL → POSTGRES_URL → parts so Replit dev/deploy is
+unaffected.

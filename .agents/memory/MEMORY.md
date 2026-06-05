@@ -2,3 +2,4 @@
 - [Supabase JWT auth pattern](supabase-jwt-auth.md) — API server verifies Bearer tokens via supabaseAdmin.auth.getUser(); never trust x-user-id from clients.
 - [Deployment architecture](deployment-architecture.md) — Vercel prod data is in Supabase Postgres (POSTGRES_URL, txn pooler 6543, TLS); local dev uses Replit DB; Vercel serves esbuild bundle (api/index.mjs), never tsc the monorepo.
 - [Auth: invite-only teachers & signup dup-email](auth-invite-only-and-signup.md) — teachers are admin-invite-only (enforce server-side, not just UI); signup must preflight email-exists before Supabase signUp.
+- [Vercel lib/db import-time crash](deployment-architecture.md) — never throw at module load; opaque FUNCTION_INVOCATION_FAILED kills frontend+API. Fail at query time; allow external DATABASE_URL fallback on Vercel.
