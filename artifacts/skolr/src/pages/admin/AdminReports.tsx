@@ -11,11 +11,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Plus, FileText, Download, Upload, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { openProtectedFile } from '@/lib/viewFile';
 
 export default function AdminReports() {
   const { schoolId, user, session } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const handleView = async (url: string) => {
+    try { await openProtectedFile(url); }
+    catch { toast({ title: 'Could not open report', description: 'Please try again.', variant: 'destructive' }); }
+  };
   const { data: reports, isLoading } = useListReports();
   const { data: students } = useListStudents(schoolId ? { school_id: schoolId } : undefined);
   const [open, setOpen] = useState(false);
@@ -165,11 +170,9 @@ export default function AdminReports() {
                       <Badge className={r.visible_to_student ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-100'}>
                         {r.visible_to_student ? 'Visible' : 'Hidden'}
                       </Badge>
-                      <a href={r.file_url} target="_blank" rel="noreferrer">
-                        <Button size="sm" variant="outline" data-testid={`button-download-${r.id}`}>
-                          <Download className="h-4 w-4 mr-1" /> View
-                        </Button>
-                      </a>
+                      <Button size="sm" variant="outline" data-testid={`button-download-${r.id}`} onClick={() => handleView(r.file_url)}>
+                        <Download className="h-4 w-4 mr-1" /> View
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

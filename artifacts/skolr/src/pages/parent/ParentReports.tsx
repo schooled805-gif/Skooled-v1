@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useListReports } from '@workspace/api-client-react';
 import { Loader2, Download, FileText } from 'lucide-react';
+import { openProtectedFile } from '@/lib/viewFile';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ParentReports() {
+  const { toast } = useToast();
+  const handleView = async (url: string) => {
+    try { await openProtectedFile(url); }
+    catch { toast({ title: 'Could not open report', description: 'Please try again.', variant: 'destructive' }); }
+  };
   const { data: reports, isLoading } = useListReports();
 
   return (
@@ -33,11 +40,9 @@ export default function ParentReports() {
                     <p className="font-medium text-gray-900">{r.title}</p>
                     <p className="text-sm text-gray-500">{r.student_name} — Term {r.term}, {r.year}</p>
                   </div>
-                  <a href={r.file_url} target="_blank" rel="noreferrer">
-                    <Button size="sm" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50" data-testid={`button-download-${r.id}`}>
-                      <Download className="h-4 w-4 mr-1" /> Download
-                    </Button>
-                  </a>
+                  <Button size="sm" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50" data-testid={`button-download-${r.id}`} onClick={() => handleView(r.file_url)}>
+                    <Download className="h-4 w-4 mr-1" /> View
+                  </Button>
                 </CardContent>
               </Card>
             ))}
