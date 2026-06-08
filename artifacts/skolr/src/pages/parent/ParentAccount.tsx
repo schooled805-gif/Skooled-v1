@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Wallet, CreditCard, AlertCircle, ArrowDownCircle, ArrowUpCircle, Loader2 } from "lucide-react";
+import { Wallet, CreditCard, AlertCircle, ArrowDownCircle, ArrowUpCircle, Loader2, Users, Copy, Check } from "lucide-react";
 
 async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
@@ -42,6 +42,18 @@ interface FeeAccount {
 }
 
 interface Providers { paystack: boolean; ozow: boolean }
+
+interface FamilyChild {
+  student_id: string;
+  student_name: string | null;
+  student_number: string | null;
+  grade: string | null;
+}
+
+interface Family {
+  reference: string;
+  children: FamilyChild[];
+}
 
 const TYPE_META: Record<string, { label: string; className: string }> = {
   charge: { label: "Charge", className: "bg-orange-100 text-orange-700" },
@@ -80,6 +92,21 @@ export default function ParentAccount() {
     queryFn: () => apiFetch(`/api/fees/providers`, session?.access_token ?? ""),
     enabled: !!session?.access_token,
   });
+
+  const { data: family } = useQuery<Family>({
+    queryKey: ["fee-family", user?.id],
+    queryFn: () => apiFetch(`/api/fees/family`, session?.access_token ?? ""),
+    enabled: !!session?.access_token,
+  });
+
+  const [copied, setCopied] = useState(false);
+  function copyReference() {
+    if (!family?.reference) return;
+    navigator.clipboard?.writeText(family.reference).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }
 
   const initiatePayment = useMutation({
     mutationFn: (body: unknown) => apiFetch("/api/fees/pay/initiate", session?.access_token ?? "", { method: "POST", body }),
@@ -134,6 +161,45 @@ export default function ParentAccount() {
           <h1 className="text-2xl font-bold text-gray-900">School Fees</h1>
           <p className="text-sm text-gray-500">View your child's fee account and pay online</p>
         </div>
+
+        {/* Family account — one reference for the whole family */}
+        {family && (
+          <Card className="border-emerald-100">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
+                    <Users className="h-4 w-4" />
+                    <span>Family Payment Reference</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xl font-bold tracking-wide text-gray-900 font-mono">{family.reference}</span>
+                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={copyReference}>
+                      {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-gray-400" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 max-w-md">
+                    Use this reference for all your payments. Each child keeps a separate balance, but every payment is grouped under your family.
+                  </p>
+                </div>
+                {family.children.length > 0 && (
+                  <div className="text-sm">
+                    <p className="text-gray-500 mb-1">Children</p>
+                    <ul className="space-y-1">
+                      {family.children.map(c => (
+                        <li key={c.student_id} className="flex items-center gap-2 text-gray-700">
+                          <span className="font-medium">{c.student_name ?? "Student"}</span>
+                          {c.grade && <span className="text-xs text-gray-400">Grade {c.grade}</span>}
+                          {c.student_number && <span className="text-xs text-gray-400">· {c.student_number}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Child selector */}
         {links.length > 1 && (
@@ -265,6 +331,11 @@ export default function ParentAccount() {
                 )}
               </div>
             </div>
+            {family?.reference && (
+              <p className="text-[11px] text-gray-500 leading-tight">
+                Payment reference: <span className="font-mono font-semibold text-gray-700">{family.reference}</span>
+              </p>
+            )}
             {payError && <p className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{payError}</p>}
             <p className="text-[11px] text-gray-400 leading-tight">
               You'll be redirected to {payProvider === "ozow" ? "Ozow" : "Paystack"} to complete payment securely. Your balance updates once the payment is confirmed.

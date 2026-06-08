@@ -24,8 +24,12 @@ export default function TeacherReports() {
   const { data: students } = useListStudents(schoolId ? { school_id: schoolId } : undefined);
   const { data: classes } = useListClasses();
 
-  // Teachers only work with students in the classes assigned to them.
-  const myClassIds = useMemo(() => new Set((classes ?? []).map(c => c.id)), [classes]);
+  // Teachers only work with students in the classes assigned to them. The
+  // server enforces this too; this filter keeps the picker accurate.
+  const myClassIds = useMemo(
+    () => new Set((classes ?? []).filter(c => c.teacher_id === profile?.id).map(c => c.id)),
+    [classes, profile?.id],
+  );
   const myStudents = useMemo(
     () => (students ?? []).filter(s => s.class_id && myClassIds.has(s.class_id)),
     [students, myClassIds],

@@ -58,6 +58,17 @@ async function isLinkedParent(userId: string, studentId: string) {
   return !!link;
 }
 
+/**
+ * A stable, human-friendly payment reference for a parent's whole family.
+ * Derived deterministically from the parent's profile id so it never changes
+ * and groups every child's payments under one reference, while each child keeps
+ * a separate fee/tuckshop balance. Each individual payment still gets a unique
+ * suffix (see /fees/pay/initiate) so providers accept it.
+ */
+function familyReferenceForParent(profileId: string): string {
+  return `FAM-${profileId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 // ── provider configuration (read at request time, never at module load) ────────
 
 function paystackSecret() {
@@ -245,6 +256,35 @@ router.get("/fees/providers", async (_req, res) => {
   res.json(providerStatus());
 });
 
+/**
+ * GET /fees/family — the requesting parent's stable family payment reference and
+ * the list of children grouped under it. Each child keeps a separate balance;
+ * this reference simply ties all of a family's payments together.
+ */
+router.get("/fees/family", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"] as string;
+    const profile = await getRequesterProfile(userId);
+    if (!profile) { res.status(403).json({ error: "Forbidden" }); return; }
+    const reference = familyReferenceForParent(profile.id);
+    const children = await db
+      .select({
+        student_id: parentStudentLinks.studentId,
+        student_name: profiles.fullName,
+        student_number: students.studentNumber,
+        grade: students.grade,
+      })
+      .from(parentStudentLinks)
+      .leftJoin(students, eq(parentStudentLinks.studentId, students.id))
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(eq(parentStudentLinks.parentUserId, userId));
+    res.json({ reference, children });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /** POST /fees/pay/initiate — parent starts an online payment, returns redirect_url */
 router.post("/fees/pay/initiate", async (req, res) => {
   try {
@@ -270,7 +310,10 @@ router.post("/fees/pay/initiate", async (req, res) => {
     if (!linked) { res.status(403).json({ error: "Forbidden" }); return; }
 
     const profile = await getRequesterProfile(userId);
-    const reference = `SKOLR-${crypto.randomBytes(10).toString("hex").toUpperCase()}`;
+    // Group every payment under the family's stable reference; the random suffix
+    // keeps each transaction unique so payment providers accept it.
+    const familyRef = profile ? familyReferenceForParent(profile.id) : "SKOLR";
+    const reference = `${familyRef}-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
     const successUrl = typeof return_url === "string" && return_url ? return_url : apiBaseFromReq(req);
     const notifyBase = apiBaseFromReq(req);
 
