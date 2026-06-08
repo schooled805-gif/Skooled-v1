@@ -9,8 +9,10 @@
 export interface EventUpdate {
   title?: string;
   description?: string;
+  event_type?: string;
   start_datetime?: string;
   end_datetime?: string;
   location?: string;
+  audience?: string;
   requires_approval?: boolean;
 }

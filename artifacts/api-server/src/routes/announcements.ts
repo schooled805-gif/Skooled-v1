@@ -48,6 +48,8 @@ router.get("/announcements", async (req, res) => {
 
 router.post("/announcements", async (req, res) => {
   try {
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
     const body = CreateAnnouncementBody.parse(req.body);
     const userId = req.headers["x-user-id"] as string;
     const [announcement] = await db.insert(announcements).values({
@@ -58,7 +60,7 @@ router.post("/announcements", async (req, res) => {
       attachmentUrl: body.attachment_url ?? null,
       publishAt: body.publish_at ?? null,
       expiresAt: body.expires_at ?? null,
-      schoolId: body.school_id,
+      schoolId, // server-derived; ignore any client-supplied school_id
       authorId: userId ?? null,
     }).returning();
 
@@ -74,7 +76,7 @@ router.post("/announcements", async (req, res) => {
             .where(
               and(
                 isNotNull(profiles.pushToken),
-                eq(profiles.schoolId, body.school_id),
+                eq(profiles.schoolId, schoolId),
               ),
             );
 

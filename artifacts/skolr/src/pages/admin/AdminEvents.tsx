@@ -6,14 +6,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { useListEvents, useCreateEvent, getListEventsQueryKey } from '@workspace/api-client-react';
+import { useListEvents, useCreateEvent, useUpdateEvent, useDeleteEvent, getListEventsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Plus, Calendar, MapPin } from 'lucide-react';
+import { Loader2, Plus, Calendar, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const typeColor = (t: string) => ({ sport: 'bg-emerald-100 text-emerald-700', exam: 'bg-red-100 text-red-700', event: 'bg-blue-100 text-blue-700' })[t] ?? 'bg-gray-100 text-gray-600';
+
+const emptyForm = { title: '', description: '', event_type: 'event', start_datetime: '', end_datetime: '', location: '', audience: 'school', requires_approval: false };
+
+// "2026-06-08T14:30:00.000Z" / ISO → value usable by <input type="datetime-local">
+const toLocalInput = (v?: string | null) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 export default function AdminEvents() {
   const { schoolId } = useAuth();
@@ -21,18 +33,61 @@ export default function AdminEvents() {
   const { toast } = useToast();
   const { data: events, isLoading } = useListEvents();
   const create = useCreateEvent();
+  const update = useUpdateEvent();
+  const del = useDeleteEvent();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', event_type: 'event', start_datetime: '', end_datetime: '', location: '', audience: 'school', requires_approval: false });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
 
-  const handleCreate = () => {
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListEventsQueryKey() });
+
+  const openCreate = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
+
+  const openEdit = (e: NonNullable<typeof events>[number]) => {
+    setEditId(e.id);
+    setForm({
+      title: e.title,
+      description: e.description ?? '',
+      event_type: e.event_type ?? 'event',
+      start_datetime: toLocalInput(e.start_datetime),
+      end_datetime: toLocalInput(e.end_datetime),
+      location: e.location ?? '',
+      audience: e.audience ?? 'school',
+      requires_approval: e.requires_approval ?? false,
+    });
+    setOpen(true);
+  };
+
+  const handleSubmit = () => {
     if (!schoolId) return;
-    create.mutate({ data: { ...form, school_id: schoolId } }, {
-      onSuccess: () => {
-        toast({ title: 'Event created' });
-        qc.invalidateQueries({ queryKey: getListEventsQueryKey() });
-        setOpen(false);
-      },
-      onError: () => toast({ title: 'Error', variant: 'destructive' }),
+    if (editId) {
+      update.mutate({ id: editId, data: {
+        title: form.title,
+        description: form.description,
+        event_type: form.event_type,
+        start_datetime: form.start_datetime,
+        end_datetime: form.end_datetime || undefined,
+        location: form.location,
+        audience: form.audience,
+        requires_approval: form.requires_approval,
+      } }, {
+        onSuccess: () => { toast({ title: 'Event updated' }); invalidate(); setOpen(false); },
+        onError: () => toast({ title: 'Error', variant: 'destructive' }),
+      });
+    } else {
+      create.mutate({ data: { ...form, school_id: schoolId } }, {
+        onSuccess: () => { toast({ title: 'Event created' }); invalidate(); setOpen(false); },
+        onError: () => toast({ title: 'Error', variant: 'destructive' }),
+      });
+    }
+  };
+
+  const handleDelete = () => {
+    if (!deleteId) return;
+    del.mutate({ id: deleteId }, {
+      onSuccess: () => { toast({ title: 'Event deleted' }); invalidate(); setDeleteId(null); },
+      onError: () => { toast({ title: 'Error', variant: 'destructive' }); setDeleteId(null); },
     });
   };
 
@@ -44,7 +99,7 @@ export default function AdminEvents() {
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Events</h1>
             <p className="text-gray-500 mt-1">School events and sports fixtures</p>
           </div>
-          <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700" data-testid="button-new-event">
+          <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700" data-testid="button-new-event">
             <Plus className="h-4 w-4 mr-2" /> New Event
           </Button>
         </div>
@@ -71,6 +126,14 @@ export default function AdminEvents() {
                     </div>
                   </div>
                   {e.requires_approval && <Badge variant="outline" className="text-xs">Requires approval</Badge>}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => openEdit(e)} data-testid={`button-edit-event-${e.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => setDeleteId(e.id)} data-testid={`button-delete-event-${e.id}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -80,7 +143,7 @@ export default function AdminEvents() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>New Event</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? 'Edit Event' : 'New Event'}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-testid="input-event-title" /></div>
             <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-event-description" /></div>
@@ -110,12 +173,29 @@ export default function AdminEvents() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={create.isPending} className="bg-blue-600 hover:bg-blue-700" data-testid="button-create-event">
-              {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+            <Button onClick={handleSubmit} disabled={create.isPending || update.isPending || !form.title.trim() || !form.start_datetime} className="bg-blue-600 hover:bg-blue-700" data-testid="button-create-event">
+              {(create.isPending || update.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : (editId ? 'Save changes' : 'Create')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the event for everyone at your school. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={del.isPending} className="bg-red-600 hover:bg-red-700" data-testid="button-confirm-delete-event">
+              {del.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PortalLayout>
   );
 }

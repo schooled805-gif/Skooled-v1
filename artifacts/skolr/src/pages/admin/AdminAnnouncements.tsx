@@ -22,16 +22,20 @@ export default function AdminAnnouncements() {
   const { data: announcements, isLoading } = useListAnnouncements();
   const create = useCreateAnnouncement();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', body: '', audience_type: 'all', priority: 'medium' });
+  const [form, setForm] = useState({ title: '', body: '', audience_type: 'all', priority: 'medium', expires_at: '' });
 
   const handleCreate = () => {
     if (!schoolId) return;
-    create.mutate({ data: { ...form, school_id: schoolId } }, {
+    const { expires_at, ...rest } = form;
+    // Date input gives a day; treat it as "visible through end of that day"
+    // (the server hides announcements once expires_at is in the past).
+    const expiresAtIso = expires_at ? new Date(`${expires_at}T23:59:59`).toISOString() : undefined;
+    create.mutate({ data: { ...rest, school_id: schoolId, expires_at: expiresAtIso } }, {
       onSuccess: () => {
         toast({ title: 'Announcement published' });
         qc.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() });
         setOpen(false);
-        setForm({ title: '', body: '', audience_type: 'all', priority: 'medium' });
+        setForm({ title: '', body: '', audience_type: 'all', priority: 'medium', expires_at: '' });
       },
       onError: () => toast({ title: 'Error', variant: 'destructive' }),
     });
@@ -71,7 +75,10 @@ export default function AdminAnnouncements() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600">{a.body}</p>
-                  {a.author_name && <p className="text-xs text-gray-400 mt-2">Posted by {a.author_name}</p>}
+                  <div className="flex items-center gap-3 mt-2">
+                    {a.author_name && <p className="text-xs text-gray-400">Posted by {a.author_name}</p>}
+                    {a.expires_at && <p className="text-xs text-amber-600">Expires {new Date(a.expires_at).toLocaleDateString()}</p>}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -103,6 +110,10 @@ export default function AdminAnnouncements() {
                   <option value="high">High</option>
                 </select>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Expiry date <span className="text-gray-400 font-normal">(optional — hidden after this date)</span></Label>
+              <Input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} data-testid="input-expires-at" />
             </div>
           </div>
           <DialogFooter>

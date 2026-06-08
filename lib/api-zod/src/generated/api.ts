@@ -438,9 +438,11 @@ export const UpdateEventParams = zod.object({
 export const UpdateEventBody = zod.object({
   "title": zod.string().optional(),
   "description": zod.string().optional(),
+  "event_type": zod.string().optional(),
   "start_datetime": zod.string().optional(),
   "end_datetime": zod.string().optional(),
   "location": zod.string().optional(),
+  "audience": zod.string().optional(),
   "requires_approval": zod.boolean().optional()
 })
 
@@ -457,6 +459,11 @@ export const UpdateEventResponse = zod.object({
   "approval_due_date": zod.string().nullish(),
   "school_id": zod.string(),
   "created_at": zod.string()
+})
+
+
+export const DeleteEventParams = zod.object({
+  "id": zod.coerce.string()
 })
 
 

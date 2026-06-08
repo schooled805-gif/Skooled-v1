@@ -45,6 +45,8 @@ function validateEventDates(start: string, end?: string | null): string | null {
 
 router.post("/events", async (req, res) => {
   try {
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
     const body = CreateEventBody.parse(req.body);
     const dateError = validateEventDates(body.start_datetime, body.end_datetime);
     if (dateError) { res.status(400).json({ error: dateError }); return; }
@@ -58,7 +60,7 @@ router.post("/events", async (req, res) => {
       audience: body.audience,
       requiresApproval: body.requires_approval ?? false,
       approvalDueDate: body.approval_due_date ?? null,
-      schoolId: body.school_id,
+      schoolId, // server-derived; ignore any client-supplied school_id
     }).returning();
     res.status(201).json(event);
   } catch (err) {
@@ -94,9 +96,11 @@ router.patch("/events/:id", async (req, res) => {
     const [event] = await db.update(events).set({
       title: body.title,
       description: body.description,
+      eventType: body.event_type,
       startDatetime: body.start_datetime,
       endDatetime: body.end_datetime,
       location: body.location,
+      audience: body.audience,
       requiresApproval: body.requires_approval,
       updatedAt: new Date(),
     }).where(and(eq(events.id, id), eq(events.schoolId, schoolId))).returning();

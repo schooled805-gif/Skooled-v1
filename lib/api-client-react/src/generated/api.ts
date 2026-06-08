@@ -1863,6 +1863,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateEventMutationOptions(options));
     }
 
+export const getDeleteEventUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}`
+}
+
+export const deleteEvent = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteEventUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteEventMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEvent>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEvent(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEventMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEvent>>>
+
+    export type DeleteEventMutationError = ErrorType<unknown>
+
+    export const useDeleteEvent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEvent>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteEventMutationOptions(options));
+    }
+
 export const getListApprovalsUrl = (params?: ListApprovalsParams,) => {
   const normalizedParams = new URLSearchParams();
 

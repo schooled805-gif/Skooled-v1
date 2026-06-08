@@ -530,6 +530,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Event"
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
 
   # ── APPROVALS ─────────────────────────────────────────────────────────────
   /approvals:
@@ -1060,9 +1072,11 @@ components:
       properties:
         title:             { type: string }
         description:       { type: string }
+        event_type:        { type: string }
         start_datetime:    { type: string }
         end_datetime:      { type: string }
         location:          { type: string }
+        audience:          { type: string }
         requires_approval: { type: boolean }
 
     Approval:
