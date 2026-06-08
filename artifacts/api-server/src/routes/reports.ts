@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { reports, students, profiles } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListReportsQueryParams,
   CreateReportBody,
@@ -46,6 +47,9 @@ router.post("/reports/upload", async (req, res) => {
 router.get("/reports", async (req, res) => {
   try {
     const query = ListReportsQueryParams.parse(req.query);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
     const rows = await db.select({
       id: reports.id,
       student_id: reports.studentId,
@@ -64,7 +68,8 @@ router.get("/reports", async (req, res) => {
       created_at: reports.createdAt,
     }).from(reports)
       .leftJoin(students, eq(reports.studentId, students.id))
-      .leftJoin(profiles, eq(students.profileId, profiles.id));
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(eq(reports.schoolId, schoolId));
 
     let result = rows;
     if (query.student_id) result = result.filter(r => r.student_id === query.student_id);

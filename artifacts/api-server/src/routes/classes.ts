@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { classes } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListClassesQueryParams,
   CreateClassBody,
@@ -28,9 +29,11 @@ function mapClass(c: typeof classes.$inferSelect) {
 
 router.get("/classes", async (req, res) => {
   try {
-    const query = ListClassesQueryParams.parse(req.query);
-    let rows = await db.select().from(classes);
-    if (query.school_id) rows = rows.filter(c => c.schoolId === query.school_id);
+    ListClassesQueryParams.parse(req.query);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
+    const rows = await db.select().from(classes).where(eq(classes.schoolId, schoolId));
     res.json(rows.map(mapClass));
   } catch (err) {
     req.log.error(err);

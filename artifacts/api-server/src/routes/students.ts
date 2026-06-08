@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, profiles, schools, classes, subjects, timetableEntries, parentStudentLinks } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListStudentsQueryParams,
   CreateStudentBody,
@@ -42,6 +43,9 @@ router.get("/students/lookup", async (req, res) => {
 router.get("/students", async (req, res) => {
   try {
     const query = ListStudentsQueryParams.parse(req.query);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
     const rows = await db.select({
       id: students.id,
       profile_id: students.profileId,
@@ -53,10 +57,12 @@ router.get("/students", async (req, res) => {
       full_name: profiles.fullName,
       avatar_url: profiles.avatarUrl,
       created_at: students.createdAt,
-    }).from(students).leftJoin(profiles, eq(students.profileId, profiles.id));
+    }).from(students)
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(eq(students.schoolId, schoolId));
 
+    // school_id is enforced server-side; only optional in-school filters remain.
     let result = rows;
-    if (query.school_id) result = result.filter((s) => s.school_id === query.school_id);
     if (query.class_id) result = result.filter((s) => s.class_id === query.class_id);
     res.json(result);
   } catch (err) {

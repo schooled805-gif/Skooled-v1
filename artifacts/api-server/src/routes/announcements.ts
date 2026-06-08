@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { announcements, profiles } from "@workspace/db";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListAnnouncementsQueryParams,
   CreateAnnouncementBody,
@@ -13,6 +14,9 @@ const router = Router();
 router.get("/announcements", async (req, res) => {
   try {
     const query = ListAnnouncementsQueryParams.parse(req.query);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
     const rows = await db.select({
       id: announcements.id,
       title: announcements.title,
@@ -26,9 +30,12 @@ router.get("/announcements", async (req, res) => {
       author_name: profiles.fullName,
       created_at: announcements.createdAt,
     }).from(announcements)
-      .leftJoin(profiles, eq(announcements.authorId, profiles.userId));
+      .leftJoin(profiles, eq(announcements.authorId, profiles.userId))
+      .where(eq(announcements.schoolId, schoolId));
 
-    let result = rows;
+    const now = Date.now();
+    // Hide announcements whose expiry date has passed.
+    let result = rows.filter(a => !a.expires_at || new Date(a.expires_at as unknown as string).getTime() >= now);
     if (query.audience_type) {
       result = result.filter(a => a.audience_type === query.audience_type || a.audience_type === "all");
     }

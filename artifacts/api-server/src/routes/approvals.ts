@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { approvals, events, students, profiles } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListApprovalsQueryParams,
   CreateApprovalBody,
@@ -15,6 +16,9 @@ const router = Router();
 router.get("/approvals", async (req, res) => {
   try {
     const query = ListApprovalsQueryParams.parse(req.query);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
     const rows = await db.select({
       id: approvals.id,
       event_id: approvals.eventId,
@@ -30,7 +34,8 @@ router.get("/approvals", async (req, res) => {
     }).from(approvals)
       .leftJoin(events, eq(approvals.eventId, events.id))
       .leftJoin(students, eq(approvals.studentId, students.id))
-      .leftJoin(profiles, eq(students.profileId, profiles.id));
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(eq(approvals.schoolId, schoolId));
 
     let result = rows;
     if (query.student_id) result = result.filter(r => r.student_id === query.student_id);

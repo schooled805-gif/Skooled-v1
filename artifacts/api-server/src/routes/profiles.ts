@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListProfilesQueryParams,
   CreateProfileBody,
@@ -82,9 +83,11 @@ router.get("/profiles/email-exists", async (req, res) => {
 router.get("/profiles", async (req, res) => {
   try {
     const query = ListProfilesQueryParams.parse(req.query);
-    let rows = await db.select().from(profiles);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+
+    let rows = await db.select().from(profiles).where(eq(profiles.schoolId, schoolId));
     if (query.role) rows = rows.filter(p => p.role === query.role);
-    if (query.school_id) rows = rows.filter(p => p.schoolId === query.school_id);
     res.json(rows.map(mapProfile));
   } catch (err) {
     req.log.error(err);
