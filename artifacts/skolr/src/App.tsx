@@ -35,6 +35,7 @@ import ParentMessages from "@/pages/parent/ParentMessages";
 import ParentReports from "@/pages/parent/ParentReports";
 import ParentTuckshop from "@/pages/parent/ParentTuckshop";
 import ParentAccount from "@/pages/parent/ParentAccount";
+import ParentCalendar from "@/pages/parent/ParentCalendar";
 
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
 import TeacherSetup from "@/pages/teacher/TeacherSetup";
@@ -173,6 +174,9 @@ function Router() {
       </Route>
       <Route path="/parent/schedule">
         <AuthGuard allowedRoles={['parent']}><ParentSchedule /></AuthGuard>
+      </Route>
+      <Route path="/parent/calendar">
+        <AuthGuard allowedRoles={['parent']}><ParentCalendar /></AuthGuard>
       </Route>
       <Route path="/parent/approvals">
         <AuthGuard allowedRoles={['parent']}><ParentApprovals /></AuthGuard>

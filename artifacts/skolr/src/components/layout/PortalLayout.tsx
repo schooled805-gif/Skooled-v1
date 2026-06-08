@@ -43,6 +43,7 @@ const getRoleConfig = (role: string) => {
           { name: 'Dashboard', path: '/parent', icon: Home },
           { name: 'Account', path: '/parent/account', icon: Wallet },
           { name: 'Tuckshop', path: '/parent/tuckshop', icon: ShoppingBag },
+          { name: 'Calendar', path: '/parent/calendar', icon: CalendarDays },
           { name: 'Schedule', path: '/parent/schedule', icon: Calendar },
           { name: 'Approvals', path: '/parent/approvals', icon: CheckSquare },
           { name: 'Messages', path: '/parent/messages', icon: MessageSquare },
