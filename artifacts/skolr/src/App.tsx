@@ -43,6 +43,7 @@ import TeacherClasses from "@/pages/teacher/TeacherClasses";
 import TeacherMessages from "@/pages/teacher/TeacherMessages";
 import TeacherApprovals from "@/pages/teacher/TeacherApprovals";
 import TeacherAnnouncements from "@/pages/teacher/TeacherAnnouncements";
+import TeacherReports from "@/pages/teacher/TeacherReports";
 
 import StudentDashboard from "@/pages/student/StudentDashboard";
 import StudentTimetable from "@/pages/student/StudentTimetable";
@@ -209,6 +210,9 @@ function Router() {
       </Route>
       <Route path="/teacher/approvals">
         <AuthGuard allowedRoles={['teacher']}><TeacherApprovals /></AuthGuard>
+      </Route>
+      <Route path="/teacher/reports">
+        <AuthGuard allowedRoles={['teacher']}><TeacherReports /></AuthGuard>
       </Route>
       <Route path="/teacher/announcements">
         <AuthGuard allowedRoles={['teacher']}><TeacherAnnouncements /></AuthGuard>

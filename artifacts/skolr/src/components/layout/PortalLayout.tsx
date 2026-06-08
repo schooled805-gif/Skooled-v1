@@ -59,6 +59,7 @@ const getRoleConfig = (role: string) => {
           { name: 'My Classes', path: '/teacher/classes', icon: Users },
           { name: 'Messages', path: '/teacher/messages', icon: MessageSquare },
           { name: 'Approvals', path: '/teacher/approvals', icon: CheckSquare },
+          { name: 'Reports', path: '/teacher/reports', icon: FileText },
           { name: 'Announcements', path: '/teacher/announcements', icon: Megaphone },
         ]
       };
