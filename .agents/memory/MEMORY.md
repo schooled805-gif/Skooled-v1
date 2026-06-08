@@ -6,3 +6,4 @@
 - [Multi-tenant file auth](multi-tenant-file-auth.md) — bind uploaded files to school in the path at upload time; never authorize downloads via mutable client-created rows.
 - [Fee/payment webhook integrity](fees-payment-webhooks.md) — credit only on verified webhook (Paystack HMAC over rawBody, Ozow SHA512); claim+ledger+atomic balance in one tx.
 - [API endpoint workflow](api-endpoint-workflow.md) — edit openapi.yaml → run api-spec codegen → restart api-server (esbuild one-shot); messages recipient_id is auth user_id, not profiles.id.
+- [Admin authz & disabled gate](admin-authz-and-disabled-gate.md) — privileged mutations must use requireAdmin() (school scope alone allows same-tenant escalation); disabled users blocked in JWT middleware except /profiles/me.

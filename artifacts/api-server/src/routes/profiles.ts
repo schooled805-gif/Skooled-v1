@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { getRequesterSchoolId } from "../lib/scope";
+import { getRequesterSchoolId, requireAdmin } from "../lib/scope";
 import {
   ListProfilesQueryParams,
   CreateProfileBody,
@@ -198,19 +198,31 @@ router.get("/profiles/pending", async (req, res) => {
   }
 });
 
-/** PATCH /api/profiles/:id/status — approve or reject a pending member */
+/**
+ * PATCH /api/profiles/:id/status — approve/reject a pending member, or
+ * disable/re-enable an existing one. A disabled profile keeps its data but is
+ * blocked from signing in (the web app gates on this status). Tenant-scoped:
+ * an admin may only change profiles within their own school.
+ */
 router.patch("/profiles/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body as { status: string };
-    if (!["approved", "rejected"].includes(status)) {
-      res.status(400).json({ error: "status must be approved or rejected" }); return;
+    if (!["approved", "rejected", "disabled"].includes(status)) {
+      res.status(400).json({ error: "status must be approved, rejected or disabled" }); return;
     }
+    const admin = await requireAdmin(req);
+    if (!admin) { res.status(403).json({ error: "Admin access required" }); return; }
+
+    const [target] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+    if (!target) { res.status(404).json({ error: "Not found" }); return; }
+    if (target.schoolId !== admin.schoolId) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (target.id === admin.id) { res.status(400).json({ error: "You cannot change your own account status" }); return; }
+
     const [profile] = await db.update(profiles)
       .set({ status, updatedAt: new Date() })
       .where(eq(profiles.id, id))
       .returning();
-    if (!profile) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapProfile(profile));
   } catch (err) {
     req.log.error(err);
@@ -218,9 +230,18 @@ router.patch("/profiles/:id/status", async (req, res) => {
   }
 });
 
+/** DELETE /api/profiles/:id — permanently remove a profile (tenant-scoped). */
 router.delete("/profiles/:id", async (req, res) => {
   try {
     const { id } = GetProfileParams.parse(req.params);
+    const admin = await requireAdmin(req);
+    if (!admin) { res.status(403).json({ error: "Admin access required" }); return; }
+
+    const [target] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+    if (!target) { res.status(204).send(); return; }
+    if (target.schoolId !== admin.schoolId) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (target.id === admin.id) { res.status(400).json({ error: "You cannot remove your own account" }); return; }
+
     await db.delete(profiles).where(eq(profiles.id, id));
     res.status(204).send();
   } catch (err) {

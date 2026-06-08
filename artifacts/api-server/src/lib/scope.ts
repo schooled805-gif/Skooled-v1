@@ -25,3 +25,15 @@ export async function getRequesterSchoolId(req: Request): Promise<string | null>
   const p = await getRequesterProfile(req);
   return p?.schoolId ?? null;
 }
+
+/**
+ * Resolve the requester's profile and require that they are an admin with a
+ * school context. Returns the admin profile, or null if the requester is not an
+ * authenticated admin. Use to gate admin-only mutations (managing users,
+ * crediting accounts) — the UI hiding a control is not a security boundary.
+ */
+export async function requireAdmin(req: Request): Promise<Profile | null> {
+  const p = await getRequesterProfile(req);
+  if (!p || p.role !== "admin" || !p.schoolId) return null;
+  return p;
+}

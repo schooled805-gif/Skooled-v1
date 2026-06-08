@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
+import { db, profiles } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { supabaseAdmin, supabaseConfigured } from "../lib/supabase";
 
 /**
@@ -41,6 +43,22 @@ export async function verifySupabaseJwt(
   req.headers["x-user-id"] = data.user.id;
   if (data.user.email) {
     req.headers["x-user-email"] = data.user.email;
+  }
+
+  // Block accounts an admin has disabled from using any protected API. We exempt
+  // /profiles/me so the client can still fetch its own status and render the
+  // "account disabled" screen instead of erroring out. A missing profile (e.g.
+  // first login before profile setup) is not blocked.
+  if (req.path !== "/profiles/me") {
+    const [profile] = await db
+      .select({ status: profiles.status })
+      .from(profiles)
+      .where(eq(profiles.userId, data.user.id))
+      .limit(1);
+    if (profile?.status === "disabled") {
+      res.status(403).json({ error: "This account has been disabled" });
+      return;
+    }
   }
 
   next();

@@ -884,6 +884,7 @@ components:
         id:           { type: string }
         user_id:      { type: string }
         role:         { type: string }
+        status:       { type: string }
         full_name:    { type: string }
         email:        { type: string }
         phone:        { type: ["string", "null"] }

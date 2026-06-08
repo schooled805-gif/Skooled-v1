@@ -61,7 +61,7 @@ const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allo
     if (!user) { setLocation('/login'); return; }
     if (!role) { setLocation('/profile-setup'); return; }
     if (profile?.status === 'pending') { setLocation('/pending-approval'); return; }
-    if (profile?.status === 'rejected') { setLocation('/pending-approval'); return; }
+    if (profile?.status === 'rejected' || profile?.status === 'disabled') { setLocation('/pending-approval'); return; }
   }, [loading, user, role, profile]);
 
   if (loading) {
@@ -76,7 +76,7 @@ const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allo
   }
 
   if (!user || !role) return null;
-  if (profile?.status === 'pending' || profile?.status === 'rejected') return null;
+  if (profile?.status === 'pending' || profile?.status === 'rejected' || profile?.status === 'disabled') return null;
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     return (
@@ -97,7 +97,7 @@ const RootRedirect = () => {
     if (loading) return;
     if (!user) return;            // not logged in → show landing page
     if (!role) { setLocation('/profile-setup'); return; }
-    if (profile?.status === 'pending' || profile?.status === 'rejected') {
+    if (profile?.status === 'pending' || profile?.status === 'rejected' || profile?.status === 'disabled') {
       setLocation('/pending-approval'); return;
     }
     setLocation(`/${role}`);      // logged in → go to portal

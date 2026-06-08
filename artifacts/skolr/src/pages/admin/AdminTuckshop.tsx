@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
-  ShoppingBag, Plus, Trash2, Edit2, Wallet, ClipboardList,
-  CheckCircle, Package, Users, DollarSign, ExternalLink, Settings, Loader2,
+  ShoppingBag, Plus, Trash2, Edit2, ClipboardList,
+  CheckCircle, Package, Users, ExternalLink, Settings, Loader2,
 } from "lucide-react";
 
 async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
@@ -83,10 +83,6 @@ export default function AdminTuckshop() {
   const [editMenu, setEditMenu] = useState<Menu | null>(null);
   const [weekLabel, setWeekLabel] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [topupDialog, setTopupDialog] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [topupAmount, setTopupAmount] = useState("");
-  const [topupNote, setTopupNote] = useState("");
   const [tuckshopUrlInput, setTuckshopUrlInput] = useState("");
   const [urlSaving, setUrlSaving] = useState(false);
 
@@ -129,16 +125,6 @@ export default function AdminTuckshop() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tuckshop-orders-admin"] }),
   });
 
-  const topupMutation = useMutation({
-    mutationFn: (body: unknown) => apiFetch("/api/tuckshop/topup", session?.access_token ?? "", { method: "POST", body }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tuckshop-accounts"] });
-      setTopupDialog(false);
-      setTopupAmount("");
-      setTopupNote("");
-    },
-  });
-
   function openNewMenu() {
     setEditMenu(null);
     setWeekLabel("");
@@ -172,15 +158,6 @@ export default function AdminTuckshop() {
     else publishMenu.mutate(body);
   }
 
-  function doTopup() {
-    if (!selectedAccount || !topupAmount) return;
-    topupMutation.mutate({
-      student_id: selectedAccount.student_id,
-      amount_cents: Math.round(parseFloat(topupAmount) * 100),
-      description: topupNote || "Admin top-up",
-    });
-  }
-
   async function saveTuckshopUrl() {
     if (!schoolId || !session?.access_token) return;
     setUrlSaving(true);
@@ -196,7 +173,6 @@ export default function AdminTuckshop() {
   }
 
   const pendingOrders = orders.filter(o => o.status === "pending");
-  const totalBalance = accounts.reduce((s, a) => s + a.balance_cents, 0);
 
   return (
     <PortalLayout role="admin">
@@ -211,15 +187,6 @@ export default function AdminTuckshop() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="p-2 bg-green-50 rounded-lg"><Wallet className="h-5 w-5 text-green-600" /></div>
-              <div>
-                <p className="text-xs text-gray-500">Total Balances</p>
-                <p className="text-xl font-bold text-gray-900">R {(totalBalance / 100).toFixed(2)}</p>
-              </div>
-            </CardContent>
-          </Card>
           <Card>
             <CardContent className="flex items-center gap-4 p-4">
               <div className="p-2 bg-blue-50 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div>
@@ -294,9 +261,6 @@ export default function AdminTuckshop() {
                         <p className="font-medium text-gray-900">{acc.student_name ?? "Unknown Student"}</p>
                         <p className="text-sm text-gray-500">Balance: <span className={`font-bold ${acc.balance_cents < 500 ? "text-red-600" : "text-green-600"}`}>R {acc.balance_display}</span></p>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => { setSelectedAccount(acc); setTopupDialog(true); }}>
-                        <DollarSign className="h-3.5 w-3.5 mr-1" />Top Up
-                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -426,36 +390,6 @@ export default function AdminTuckshop() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Top Up Dialog ── */}
-      <Dialog open={topupDialog} onOpenChange={setTopupDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Top Up Account</DialogTitle>
-          </DialogHeader>
-          {selectedAccount && (
-            <div className="space-y-4">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">{selectedAccount.student_name}</p>
-                <p className="text-sm text-gray-500">Current balance: <span className="font-bold text-green-600">R {selectedAccount.balance_display}</span></p>
-              </div>
-              <div>
-                <Label>Amount (R)</Label>
-                <Input type="number" step="0.01" placeholder="0.00" value={topupAmount} onChange={e => setTopupAmount(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label>Note (optional)</Label>
-                <Input placeholder="e.g. Cash received at front desk" value={topupNote} onChange={e => setTopupNote(e.target.value)} className="mt-1" />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTopupDialog(false)}>Cancel</Button>
-            <Button onClick={doTopup} disabled={!topupAmount || topupMutation.isPending}>
-              Add Credit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </PortalLayout>
   );
 }

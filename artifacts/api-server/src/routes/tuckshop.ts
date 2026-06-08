@@ -9,6 +9,7 @@ import {
   profiles,
 } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
+import { requireAdmin } from "../lib/scope";
 
 const router = Router();
 
@@ -75,9 +76,13 @@ router.get("/tuckshop/accounts", async (req, res) => {
     const enriched = await Promise.all(accounts.map(async (acc) => {
       const [student] = await db.select().from(students).where(eq(students.id, acc.studentId)).limit(1);
       let name: string | null = null;
+      let active = false;
       if (student) {
         const [prof] = await db.select().from(profiles).where(eq(profiles.id, student.profileId)).limit(1);
         name = prof?.fullName ?? null;
+        // An account is "active" only when its linked student profile exists and
+        // is approved (not pending, rejected, or disabled by an admin).
+        active = prof?.status === "approved";
       }
       return {
         id: acc.id,
@@ -86,19 +91,28 @@ router.get("/tuckshop/accounts", async (req, res) => {
         balance_cents: acc.balanceCents,
         balance_display: centsToDisplay(acc.balanceCents),
         updated_at: acc.updatedAt?.toISOString() ?? null,
+        active,
       };
     }));
 
-    res.json(enriched);
+    res.json(enriched.filter((a) => a.active));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-/** POST /tuckshop/topup — admin credits a student account */
+/**
+ * POST /tuckshop/topup — manual admin credit of a student account (back-office
+ * only). Parent-funded top-ups happen through the online payment flow
+ * (/fees/pay/initiate), not here. Restricted to same-school admins so other
+ * roles cannot inflate arbitrary balances.
+ */
 router.post("/tuckshop/topup", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) { res.status(403).json({ error: "Admin access required" }); return; }
+
     const { student_id, amount_cents, description } = req.body;
     if (!student_id || !amount_cents || amount_cents <= 0) {
       res.status(400).json({ error: "student_id and amount_cents (>0) required" }); return;
@@ -106,6 +120,7 @@ router.post("/tuckshop/topup", async (req, res) => {
 
     const [student] = await db.select().from(students).where(eq(students.id, student_id)).limit(1);
     if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+    if (student.schoolId !== admin.schoolId) { res.status(403).json({ error: "Forbidden" }); return; }
 
     const account = await getOrCreateAccount(student_id, student.schoolId);
 

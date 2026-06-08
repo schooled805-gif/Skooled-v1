@@ -5,11 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useListProfiles, useCreateProfile, getListProfilesQueryKey } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Plus, Search, Users } from 'lucide-react';
+import { Loader2, Plus, Search, Users, Ban, CircleCheck, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,17 +24,77 @@ const ROLE_COLORS: Record<string, string> = {
   student: 'bg-orange-100 text-orange-700',
 };
 
+const STATUS_COLORS: Record<string, string> = {
+  approved: 'bg-emerald-100 text-emerald-700',
+  pending: 'bg-amber-100 text-amber-700',
+  rejected: 'bg-red-100 text-red-700',
+  disabled: 'bg-gray-200 text-gray-600',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  approved: 'Active',
+  pending: 'Pending',
+  rejected: 'Rejected',
+  disabled: 'Disabled',
+};
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string;
+  status: string;
+  phone: string | null;
+}
+
 export default function AdminUsers() {
-  const { schoolId } = useAuth();
+  const { schoolId, session, profile: me } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const token = session?.access_token ?? '';
   const { data: profiles, isLoading } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
   const create = useCreateProfile();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ full_name: '', email: '', role: 'teacher', phone: '' });
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
 
-  const filtered = (profiles ?? []).filter(p =>
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListProfilesQueryKey() });
+
+  const setStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'disabled' | 'approved' }) => {
+      const res = await fetch(`/api/profiles/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    },
+    onSuccess: (_, { status }) => {
+      invalidate();
+      toast({ title: status === 'disabled' ? 'User disabled' : 'User re-enabled' });
+    },
+    onError: () => toast({ title: 'Action failed', variant: 'destructive' }),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/profiles/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok && res.status !== 204) throw new Error('Failed');
+    },
+    onSuccess: () => {
+      invalidate();
+      setDeleteTarget(null);
+      toast({ title: 'User removed' });
+    },
+    onError: () => toast({ title: 'Could not remove user', variant: 'destructive' }),
+  });
+
+  const filtered = ((profiles ?? []) as Profile[]).filter(p =>
     p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     p.email?.toLowerCase().includes(search.toLowerCase())
   );
@@ -40,7 +104,7 @@ export default function AdminUsers() {
     create.mutate({ data: { ...form, school_id: schoolId, user_id: '' } }, {
       onSuccess: () => {
         toast({ title: 'User profile created' });
-        qc.invalidateQueries({ queryKey: getListProfilesQueryKey() });
+        invalidate();
         setOpen(false);
         setForm({ full_name: '', email: '', role: 'teacher', phone: '' });
       },
@@ -101,20 +165,73 @@ export default function AdminUsers() {
                     <TableHead className="pl-6">Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead className="text-right pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(profile => (
-                    <TableRow key={profile.id} data-testid={`row-user-${profile.id}`}>
-                      <TableCell className="pl-6 font-medium">{profile.full_name}</TableCell>
-                      <TableCell className="text-gray-500">{profile.email}</TableCell>
-                      <TableCell>
-                        <Badge className={`${ROLE_COLORS[profile.role] ?? 'bg-gray-100 text-gray-600'} hover:opacity-90`}>{profile.role}</Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-400 text-sm">{profile.phone ?? '—'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {filtered.map(profile => {
+                    const isSelf = profile.id === me?.id;
+                    const isDisabled = profile.status === 'disabled';
+                    const busy = setStatus.isPending || remove.isPending;
+                    return (
+                      <TableRow key={profile.id} data-testid={`row-user-${profile.id}`}>
+                        <TableCell className="pl-6 font-medium">{profile.full_name}</TableCell>
+                        <TableCell className="text-gray-500">{profile.email}</TableCell>
+                        <TableCell>
+                          <Badge className={`${ROLE_COLORS[profile.role] ?? 'bg-gray-100 text-gray-600'} hover:opacity-90`}>{profile.role}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${STATUS_COLORS[profile.status] ?? 'bg-gray-100 text-gray-600'} hover:opacity-90`}>
+                            {STATUS_LABELS[profile.status] ?? profile.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-400 text-sm">{profile.phone ?? '—'}</TableCell>
+                        <TableCell className="text-right pr-6">
+                          {isSelf ? (
+                            <span className="text-xs text-gray-400">You</span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              {isDisabled ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+                                  disabled={busy}
+                                  onClick={() => setStatus.mutate({ id: profile.id, status: 'approved' })}
+                                  data-testid={`button-enable-${profile.id}`}
+                                >
+                                  <CircleCheck className="h-3.5 w-3.5" /> Enable
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-amber-700 border-amber-200 hover:bg-amber-50 gap-1"
+                                  disabled={busy}
+                                  onClick={() => setStatus.mutate({ id: profile.id, status: 'disabled' })}
+                                  data-testid={`button-disable-${profile.id}`}
+                                >
+                                  <Ban className="h-3.5 w-3.5" /> Disable
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50 gap-1"
+                                disabled={busy}
+                                onClick={() => setDeleteTarget(profile)}
+                                data-testid={`button-delete-${profile.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remove
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
@@ -161,6 +278,29 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {deleteTarget?.full_name || 'this user'}'s profile. This cannot be undone.
+              To temporarily block access instead, use Disable.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={remove.isPending}
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) remove.mutate(deleteTarget.id); }}
+              data-testid="button-confirm-delete"
+            >
+              {remove.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remove user'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PortalLayout>
   );
 }
