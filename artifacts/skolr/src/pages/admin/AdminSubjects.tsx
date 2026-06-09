@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePhase } from "@/contexts/PhaseContext";
+import { PhaseTabs } from "@/components/PhaseTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useListProfiles } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,11 +33,12 @@ async function apiFetch(url: string, token: string, options?: Omit<RequestInit, 
   return res.json();
 }
 
-interface Subject { id: string; name: string; code: string | null; }
+interface Subject { id: string; name: string; code: string | null; phase?: string | null; }
 interface SubjectTeacher { id: string; subject_id: string; teacher_id: string; teacher_name: string | null; }
 
 export default function AdminSubjects() {
   const { schoolId, session } = useAuth();
+  const { multiPhase, activePhase } = usePhase();
   const token = session?.access_token ?? "";
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -52,6 +55,8 @@ export default function AdminSubjects() {
   });
   const { data: profiles } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
   const teachers = ((profiles ?? []) as any[]).filter((p) => p.role === "teacher");
+  const phaseTeachers = teachers.filter((t) => !multiPhase || t.phase === activePhase || !t.phase);
+  const visibleSubjects = subjects.filter((s) => !multiPhase || s.phase === activePhase || !s.phase);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -66,7 +71,7 @@ export default function AdminSubjects() {
   };
 
   const createSubject = useMutation({
-    mutationFn: () => apiFetch(`/api/subjects`, token, { method: "POST", body: { name, code: code || null } }),
+    mutationFn: () => apiFetch(`/api/subjects`, token, { method: "POST", body: { name, code: code || null, ...(multiPhase && activePhase ? { phase: activePhase } : {}) } }),
     onSuccess: () => { invalidate(); setOpen(false); setName(""); setCode(""); toast({ title: "Subject created" }); },
     onError: (e: any) => toast({ title: "Could not create subject", description: e?.message, variant: "destructive" }),
   });
@@ -90,7 +95,7 @@ export default function AdminSubjects() {
 
   const teachersFor = (subjectId: string) => subjectTeachers.filter((st) => st.subject_id === subjectId);
   const unassignedTeachers = assignFor
-    ? teachers.filter((t) => !teachersFor(assignFor.id).some((st) => st.teacher_id === t.id))
+    ? phaseTeachers.filter((t) => !teachersFor(assignFor.id).some((st) => st.teacher_id === t.id))
     : [];
 
   return (
@@ -106,9 +111,11 @@ export default function AdminSubjects() {
           </Button>
         </div>
 
+        <PhaseTabs />
+
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>
-        ) : subjects.length === 0 ? (
+        ) : visibleSubjects.length === 0 ? (
           <Card>
             <CardContent className="py-16 text-center">
               <BookMarked className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -121,7 +128,7 @@ export default function AdminSubjects() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {subjects.map((subj) => {
+            {visibleSubjects.map((subj) => {
               const assigned = teachersFor(subj.id);
               return (
                 <Card key={subj.id} data-testid={`card-subject-${subj.id}`}>

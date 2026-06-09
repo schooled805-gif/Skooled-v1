@@ -3,12 +3,14 @@ import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { normalizePhase } from "../lib/validation";
 
 const router = Router();
 
 router.post("/teachers/invite", async (req, res) => {
   try {
-    const { full_name, email, phone, school_id } = req.body;
+    const { full_name, email, phone, school_id, phase } = req.body;
+    const normalizedPhase = normalizePhase(phase);
 
     if (!full_name?.trim() || !email?.trim()) {
       res.status(400).json({ error: "full_name and email are required" });
@@ -68,6 +70,7 @@ router.post("/teachers/invite", async (req, res) => {
       email: normalizedEmail,
       phone: phone?.trim() || null,
       schoolId: school_id || null,
+      phase: normalizedPhase,
     }).returning();
 
     res.status(201).json({
@@ -79,6 +82,7 @@ router.post("/teachers/invite", async (req, res) => {
         email: profile.email,
         phone: profile.phone ?? null,
         school_id: profile.schoolId ?? null,
+        phase: profile.phase ?? null,
         created_at: profile.createdAt?.toISOString() ?? null,
       },
       invited,

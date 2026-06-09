@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useListTimetableEntries, useCreateTimetableEntry, useDeleteTimetableEntry, getListTimetableEntriesQueryKey, useListSubjects, useListClasses, useListProfiles } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePhase } from '@/contexts/PhaseContext';
+import { PhaseTabs } from '@/components/PhaseTabs';
 import { Loader2, Plus, Trash2, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +18,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 export default function AdminTimetable() {
   const { schoolId } = useAuth();
+  const { multiPhase, activePhase } = usePhase();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: entries, isLoading } = useListTimetableEntries();
@@ -24,8 +27,12 @@ export default function AdminTimetable() {
   const { data: subjects } = useListSubjects();
   const { data: classesList } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
   const { data: profilesList } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
-  const teachers = ((profilesList ?? []) as any[]).filter((p) => p.role === 'teacher');
-  const activeClasses = ((classesList ?? []) as any[]).filter((c) => c.status !== 'disabled');
+  const classPhaseMap = new Map(((classesList ?? []) as any[]).map((c) => [c.id, c.phase ?? null]));
+  const inPhase = (phase: string | null) => !multiPhase || phase === activePhase || !phase;
+  const teachers = ((profilesList ?? []) as any[]).filter((p) => p.role === 'teacher' && inPhase(p.phase ?? null));
+  const activeClasses = ((classesList ?? []) as any[]).filter((c) => c.status !== 'disabled' && inPhase(c.phase ?? null));
+  const visibleSubjects = ((subjects ?? []) as any[]).filter((s) => inPhase(s.phase ?? null));
+  const entryPhase = (e: any): string | null => (e.class_id ? classPhaseMap.get(e.class_id) ?? null : null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ class_id: '', subject_id: '', teacher_id: '', day_of_week: 'Monday', start_time: '08:00', end_time: '09:00', room: '', type: 'lesson' });
 
@@ -70,12 +77,15 @@ export default function AdminTimetable() {
             <Plus className="h-4 w-4 mr-2" /> Add Entry
           </Button>
         </div>
+
+        <PhaseTabs />
+
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>
         ) : (
           <div className="grid gap-4">
             {DAYS.map(day => {
-              const dayEntries = (entries ?? []).filter(e => e.day_of_week?.toLowerCase() === day.toLowerCase());
+              const dayEntries = (entries ?? []).filter(e => e.day_of_week?.toLowerCase() === day.toLowerCase() && inPhase(entryPhase(e)));
               return (
                 <Card key={day}>
                   <div className="px-4 py-2 border-b bg-blue-50">
@@ -114,7 +124,7 @@ export default function AdminTimetable() {
                 <Label>Subject</Label>
                 <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.subject_id} onChange={e => setForm(f => ({ ...f, subject_id: e.target.value }))} data-testid="select-subject">
                   <option value="">Select subject…</option>
-                  {((subjects ?? []) as any[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

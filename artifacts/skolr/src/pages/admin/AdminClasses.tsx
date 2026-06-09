@@ -14,6 +14,8 @@ import {
 import { useListClasses, useCreateClass, getListClassesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePhase } from '@/contexts/PhaseContext';
+import { PhaseTabs } from '@/components/PhaseTabs';
 import { Loader2, Plus, BookOpen, Ban, CircleCheck, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,10 +23,14 @@ interface School { id: string; name: string; }
 
 export default function AdminClasses() {
   const { schoolId, session } = useAuth();
+  const { multiPhase, activePhase } = usePhase();
   const token = session?.access_token ?? '';
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: classes, isLoading } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
+  const visibleClasses = (classes ?? []).filter(
+    (c) => !multiPhase || (c as any).phase === activePhase || !(c as any).phase,
+  );
   const create = useCreateClass();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', grade_level: '', academic_year: '' });
@@ -84,7 +90,7 @@ export default function AdminClasses() {
       toast({ title: 'Class name is required', variant: 'destructive' });
       return;
     }
-    create.mutate({ data: { ...form, school_id: resolvedSchoolId } }, {
+    create.mutate({ data: { ...form, school_id: resolvedSchoolId, ...(multiPhase && activePhase ? { phase: activePhase } : {}) } as any }, {
       onSuccess: () => {
         toast({ title: 'Class created successfully' });
         qc.invalidateQueries({ queryKey: getListClassesQueryKey() });
@@ -113,9 +119,11 @@ export default function AdminClasses() {
           </Button>
         </div>
 
+        <PhaseTabs />
+
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>
-        ) : !classes?.length ? (
+        ) : !visibleClasses.length ? (
           <Card>
             <CardContent className="py-16 text-center">
               <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -128,7 +136,7 @@ export default function AdminClasses() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {classes.map(cls => (
+            {visibleClasses.map(cls => (
               <Card key={cls.id} className={`hover:shadow-md transition-shadow ${(cls as any).status === 'disabled' ? 'opacity-60' : ''}`} data-testid={`card-class-${cls.id}`}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex justify-between items-start">

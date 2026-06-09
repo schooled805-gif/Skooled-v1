@@ -1,5 +1,18 @@
 import type { Request, Response } from "express";
 
+export const ALLOWED_PHASES = ["nursery", "pre_primary", "primary", "high"] as const;
+
+/**
+ * Normalize a single incoming `phase` value to a valid phase string, or null.
+ * Anything that isn't one of the allowed phase values becomes null so an invalid
+ * phase can never silently hide a row from every per-phase tab.
+ */
+export function normalizePhase(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  return (ALLOWED_PHASES as readonly string[]).includes(trimmed) ? trimmed : null;
+}
+
 /**
  * Convert a thrown error into an HTTP response. Zod parse errors are duck-typed
  * by their `issues` array (so we don't depend on a specific zod instance) and

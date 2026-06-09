@@ -4,7 +4,7 @@ import { subjects, subjectTeachers, profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { CreateSubjectBody } from "@workspace/api-zod";
 import { getRequesterProfile, requireAdmin } from "../lib/scope";
-import { handleRouteError } from "../lib/validation";
+import { handleRouteError, normalizePhase } from "../lib/validation";
 
 const router = Router();
 
@@ -45,6 +45,7 @@ router.post("/subjects", async (req, res) => {
       name,
       code: body.code ?? null,
       schoolId: admin.schoolId,
+      phase: normalizePhase(req.body?.phase),
     }).returning();
     res.status(201).json(subject);
   } catch (err) {
@@ -67,6 +68,7 @@ router.patch("/subjects/:id", async (req, res) => {
     const [subject] = await db.update(subjects).set({
       name,
       code: str(req.body?.code),
+      ...(req.body?.phase !== undefined && { phase: normalizePhase(req.body?.phase) }),
     }).where(and(eq(subjects.id, req.params.id), eq(subjects.schoolId, admin.schoolId))).returning();
     if (!subject) { res.status(404).json({ error: "Subject not found" }); return; }
     res.json(subject);

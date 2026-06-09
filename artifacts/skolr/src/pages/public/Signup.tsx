@@ -20,6 +20,7 @@ import {
   Building2,
   GraduationCap,
 } from 'lucide-react';
+import { PHASE_OPTIONS } from '@/lib/phases';
 
 function GoogleIcon() {
   return (
@@ -89,6 +90,7 @@ export default function Signup() {
   const [schoolSearch, setSchoolSearch] = useState('');
   const [newSchoolName, setNewSchoolName] = useState('');
   const [newSchoolAddress, setNewSchoolAddress] = useState('');
+  const [newSchoolPhases, setNewSchoolPhases] = useState<string[]>([]);
   const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('join');
   const [loadingSchools, setLoadingSchools] = useState(false);
 
@@ -218,6 +220,7 @@ export default function Signup() {
           body: JSON.stringify({
             name: newSchoolName.trim(),
             address: newSchoolAddress.trim() || undefined,
+            phases: newSchoolPhases.length > 0 ? newSchoolPhases : undefined,
           }),
         });
         if (!schoolRes.ok) {
@@ -462,6 +465,29 @@ export default function Signup() {
                     <div className="space-y-1.5">
                       <Label>Address <span className="text-gray-400 text-xs">(optional)</span></Label>
                       <Input value={newSchoolAddress} onChange={e => setNewSchoolAddress(e.target.value)} placeholder="123 Main St, City" data-testid="input-school-address" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>School Phases <span className="text-gray-400 text-xs">(optional)</span></Label>
+                      <p className="text-xs text-gray-400">Select the phases your school runs. If you select more than one, classes, subjects, teachers, students and the timetable will be organised into tabs per phase.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PHASE_OPTIONS.map(opt => {
+                          const checked = newSchoolPhases.includes(opt.value);
+                          return (
+                            <button
+                              type="button"
+                              key={opt.value}
+                              onClick={() => setNewSchoolPhases(prev => checked ? prev.filter(p => p !== opt.value) : [...prev, opt.value])}
+                              className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${checked ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}
+                              data-testid={`phase-option-${opt.value}`}
+                            >
+                              <span className={`flex items-center justify-center h-4 w-4 rounded border ${checked ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300'}`}>
+                                {checked && <Check className="h-3 w-3" />}
+                              </span>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ) : (

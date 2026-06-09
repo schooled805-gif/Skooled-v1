@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useListProfiles, getListProfilesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePhase } from '@/contexts/PhaseContext';
+import { PhaseTabs } from '@/components/PhaseTabs';
+import { phaseLabel } from '@/lib/phases';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, UserRound, Mail, Phone, Trash2, BookOpen, Download, Upload, AlertCircle } from 'lucide-react';
 
@@ -24,9 +27,13 @@ function exportTeachersCSV(teachers: any[]) {
 
 export default function AdminTeachers() {
   const { schoolId, user, session } = useAuth();
+  const { multiPhase, activePhase } = usePhase();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: teachers, isLoading } = useListProfiles(schoolId ? { role: 'teacher', school_id: schoolId } : { role: 'teacher' });
+  const visibleTeachers = (teachers ?? []).filter(
+    (t) => !multiPhase || (t as any).phase === activePhase || !(t as any).phase,
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' });
   const [saving, setSaving] = useState(false);
@@ -40,7 +47,7 @@ export default function AdminTeachers() {
       const res = await fetch('/api/teachers/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
-        body: JSON.stringify({ full_name: form.full_name, email: form.email, phone: form.phone || undefined, school_id: schoolId }),
+        body: JSON.stringify({ full_name: form.full_name, email: form.email, phone: form.phone || undefined, school_id: schoolId, ...(multiPhase && activePhase ? { phase: activePhase } : {}) }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to add teacher'); }
       const result = await res.json();
@@ -69,9 +76,9 @@ export default function AdminTeachers() {
   };
 
   const handleExport = () => {
-    if (!teachers?.length) { toast({ title: 'No teachers to export' }); return; }
-    exportTeachersCSV(teachers);
-    toast({ title: 'Exported', description: `${teachers.length} teachers exported` });
+    if (!visibleTeachers.length) { toast({ title: 'No teachers to export' }); return; }
+    exportTeachersCSV(visibleTeachers);
+    toast({ title: 'Exported', description: `${visibleTeachers.length} teachers exported` });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +100,7 @@ export default function AdminTeachers() {
         const full_name = vals[nameIdx] ?? ''; const email = vals[emailIdx] ?? ''; const phone = phoneIdx >= 0 ? vals[phoneIdx] ?? '' : '';
         if (!full_name || !email) { failed++; continue; }
         try {
-          const r = await fetch('/api/teachers/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email.toLowerCase(), phone: phone || undefined, school_id: schoolId }) });
+          const r = await fetch('/api/teachers/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email.toLowerCase(), phone: phone || undefined, school_id: schoolId, ...(multiPhase && activePhase ? { phase: activePhase } : {}) }) });
           if (r.ok) success++; else failed++;
         } catch { failed++; }
       }
@@ -129,6 +136,8 @@ export default function AdminTeachers() {
           </div>
         </div>
 
+        <PhaseTabs />
+
         <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 text-sm text-emerald-700 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>Teachers are added by school admins only. When added, they receive an email invitation to set their password and access their portal. CSV format: <strong>Full Name, Email, Phone</strong></span>
@@ -136,7 +145,7 @@ export default function AdminTeachers() {
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>
-        ) : !teachers?.length ? (
+        ) : !visibleTeachers.length ? (
           <Card>
             <CardContent className="py-16 text-center">
               <UserRound className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -149,7 +158,7 @@ export default function AdminTeachers() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(teachers ?? []).map(teacher => (
+            {visibleTeachers.map(teacher => (
               <Card key={teacher.id} className="hover:shadow-md transition-shadow" data-testid={`card-teacher-${teacher.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -164,6 +173,9 @@ export default function AdminTeachers() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 ml-2">
+                      {multiPhase && (teacher as any).phase && (
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs">{phaseLabel((teacher as any).phase)}</Badge>
+                      )}
                       <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-xs">Teacher</Badge>
                       <button onClick={() => handleDelete(teacher.id, teacher.full_name ?? 'teacher')} className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-testid={`btn-delete-teacher-${teacher.id}`}>
                         <Trash2 className="h-4 w-4" />
@@ -187,6 +199,11 @@ export default function AdminTeachers() {
             <div className="p-3 bg-emerald-50 rounded-lg text-sm text-emerald-700">
               The teacher will receive an email invitation to set their password and access their portal.
             </div>
+            {multiPhase && activePhase && (
+              <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                This teacher will be added to the <strong>{phaseLabel(activePhase)}</strong> phase.
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Full Name <span className="text-red-500">*</span></Label>
               <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Jane Smith" data-testid="input-teacher-name" />

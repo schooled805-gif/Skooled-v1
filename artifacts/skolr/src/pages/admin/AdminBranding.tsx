@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   Palette, Upload, Check, Loader2, Eye, RotateCcw,
-  Building2, Home, Users, BookOpen, Calendar, FileText, X,
+  Building2, Home, Users, BookOpen, Calendar, FileText, X, Layers,
 } from 'lucide-react';
+import { PHASE_OPTIONS } from '@/lib/phases';
 
 const PRESET_COLORS = [
   { label: 'Blue',    value: '#2563EB' },
@@ -123,6 +124,7 @@ export default function AdminBranding() {
   const [logoPreview, setLogoPreview] = useState(school?.logoUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [phases, setPhases] = useState<string[]>(school?.phases ?? []);
 
   useEffect(() => {
     if (school) {
@@ -130,6 +132,7 @@ export default function AdminBranding() {
       setLogoUrl(school.logoUrl ?? '');
       setLogoPreview(school.logoUrl ?? '');
       setSchoolName(school.name ?? '');
+      setPhases(school.phases ?? []);
     }
   }, [school]);
 
@@ -178,7 +181,7 @@ export default function AdminBranding() {
       const res = await fetch(`/api/schools/${schoolId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, phases }),
       });
 
       if (!res.ok) {
@@ -239,6 +242,39 @@ export default function AdminBranding() {
                   onChange={e => setSchoolName(e.target.value)}
                   placeholder="Springfield Academy"
                 />
+              </CardContent>
+            </Card>
+
+            {/* School phases */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-blue-500" /> School Phases
+                </CardTitle>
+                <CardDescription>
+                  Select the phases your school runs. When more than one is selected, Classes, Subjects, Teachers, Students and the Timetable are organised into per-phase tabs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {PHASE_OPTIONS.map(opt => {
+                    const checked = phases.includes(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => setPhases(prev => checked ? prev.filter(p => p !== opt.value) : [...prev, opt.value])}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${checked ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}
+                        data-testid={`phase-option-${opt.value}`}
+                      >
+                        <span className={`flex items-center justify-center h-4 w-4 rounded border ${checked ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300'}`}>
+                          {checked && <Check className="h-3 w-3" />}
+                        </span>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
 

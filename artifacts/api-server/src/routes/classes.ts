@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { classes, students } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getRequesterSchoolId, requireAdmin } from "../lib/scope";
-import { handleRouteError } from "../lib/validation";
+import { handleRouteError, normalizePhase } from "../lib/validation";
 import {
   ListClassesQueryParams,
   CreateClassBody,
@@ -23,6 +23,7 @@ function mapClass(c: typeof classes.$inferSelect) {
     grade_level: c.gradeLevel ?? null,
     teacher_id: c.teacherId ?? null,
     academic_year: c.academicYear ?? null,
+    phase: c.phase ?? null,
     status: c.status ?? "active",
     created_at: c.createdAt?.toISOString() ?? null,
     updated_at: c.updatedAt?.toISOString() ?? null,
@@ -47,12 +48,14 @@ router.post("/classes", async (req, res) => {
     const admin = await requireAdmin(req);
     if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const body = CreateClassBody.parse(req.body);
+    const phase = normalizePhase(req.body?.phase);
     const [cls] = await db.insert(classes).values({
       name: body.name,
       schoolId: admin.schoolId,
       gradeLevel: body.grade_level,
       teacherId: body.teacher_id ?? null,
       academicYear: body.academic_year ?? null,
+      phase,
     }).returning();
     res.status(201).json(mapClass(cls));
   } catch (err) {
@@ -84,6 +87,9 @@ router.patch("/classes/:id", async (req, res) => {
       name: body.name,
       gradeLevel: body.grade_level,
       teacherId: body.teacher_id,
+      ...(req.body?.phase !== undefined && {
+        phase: normalizePhase(req.body.phase),
+      }),
       updatedAt: new Date(),
     }).where(and(eq(classes.id, id), eq(classes.schoolId, admin.schoolId))).returning();
     if (!cls) { res.status(404).json({ error: "Not found" }); return; }

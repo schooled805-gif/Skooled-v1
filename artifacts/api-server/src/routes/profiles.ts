@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getRequesterSchoolId, requireAdmin } from "../lib/scope";
+import { normalizePhase } from "../lib/validation";
 import {
   ListProfilesQueryParams,
   CreateProfileBody,
@@ -27,6 +28,7 @@ function mapProfile(p: Profile) {
     phone: p.phone ?? null,
     avatar_url: p.avatarUrl ?? null,
     school_id: p.schoolId ?? null,
+    phase: p.phase ?? null,
     created_at: p.createdAt?.toISOString() ?? null,
     updated_at: p.updatedAt?.toISOString() ?? null,
   };
@@ -153,6 +155,7 @@ router.post("/profiles", async (req, res) => {
       phone: body.phone ?? null,
       avatarUrl: body.avatar_url ?? null,
       schoolId: body.school_id,
+      phase: normalizePhase(req.body?.phase),
     }).returning();
     res.status(201).json(mapProfile(profile));
   } catch (err: any) {

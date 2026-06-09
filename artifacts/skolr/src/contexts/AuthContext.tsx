@@ -25,6 +25,7 @@ export interface School {
   primaryColor?: string | null;
   secondaryColor?: string | null;
   tuckshopUrl?: string | null;
+  phases?: string[] | null;
 }
 
 interface AuthContextType {

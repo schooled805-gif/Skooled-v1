@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useListStudents, useListClasses, getListStudentsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePhase } from '@/contexts/PhaseContext';
+import { PhaseTabs } from '@/components/PhaseTabs';
 import { Loader2, Plus, Search, GraduationCap, Download, Upload, Trash2, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
@@ -30,10 +32,13 @@ function exportToCSV(rows: any[], filename: string) {
 
 export default function AdminStudents() {
   const { schoolId, user, profile: adminProfile, session } = useAuth();
+  const { multiPhase, activePhase } = usePhase();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: students, isLoading } = useListStudents(schoolId ? { school_id: schoolId } : undefined);
   const { data: classes } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
+  const classPhaseMap = new Map((classes ?? []).map(c => [c.id, (c as any).phase ?? null]));
+  const phaseClasses = (classes ?? []).filter(c => !multiPhase || (c as any).phase === activePhase || !(c as any).phase);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -42,9 +47,11 @@ export default function AdminStudents() {
   const [form, setForm] = useState({ full_name: '', email: '', grade: '', class_id: '', date_of_birth: '' });
 
   const classMap = new Map((classes ?? []).map(c => [c.id, c.name ?? '']));
+  const studentPhase = (s: any): string | null => (s.class_id ? classPhaseMap.get(s.class_id) ?? null : null);
   const filtered = (students ?? []).filter(s =>
-    (s.full_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
-    (s.student_number?.toLowerCase() ?? '').includes(search.toLowerCase())
+    ((s.full_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+      (s.student_number?.toLowerCase() ?? '').includes(search.toLowerCase())) &&
+    (!multiPhase || studentPhase(s) === activePhase || !studentPhase(s))
   );
   const previewNumber = generateStudentNumberPreview(adminProfile?.full_name ?? 'STU', students?.length ?? 0);
   const selectedClass = (classes ?? []).find(c => c.id === form.class_id);
@@ -84,9 +91,9 @@ export default function AdminStudents() {
   };
 
   const handleExport = () => {
-    if (!students?.length) { toast({ title: 'No students to export' }); return; }
-    exportToCSV(students.map(s => ({ ...s, class_name: classMap.get(s.class_id ?? '') ?? '' })), `students-${new Date().toISOString().slice(0, 10)}.csv`);
-    toast({ title: 'Exported', description: `${students.length} students exported` });
+    if (!filtered.length) { toast({ title: 'No students to export' }); return; }
+    exportToCSV(filtered.map(s => ({ ...s, class_name: classMap.get(s.class_id ?? '') ?? '' })), `students-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast({ title: 'Exported', description: `${filtered.length} students exported` });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,6 +158,8 @@ export default function AdminStudents() {
             </Button>
           </div>
         </div>
+
+        <PhaseTabs />
 
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -254,7 +263,7 @@ export default function AdminStudents() {
                 value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))} data-testid="select-class"
               >
                 <option value="">— Select a class (required) —</option>
-                {(classes ?? []).map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}</option>)}
+                {phaseClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}</option>)}
               </select>
               {!form.class_id && (
                 <p className="text-xs text-orange-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Class assignment is required to complete enrolment</p>

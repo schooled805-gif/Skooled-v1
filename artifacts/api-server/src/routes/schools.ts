@@ -2,8 +2,20 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { schools } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { ALLOWED_PHASES } from "../lib/validation";
 
 const router = Router();
+
+/** Validate + normalize an incoming `phases` value into a clean string[] (or null). */
+function normalizePhases(input: unknown): string[] | null {
+  if (!Array.isArray(input)) return null;
+  const cleaned = input
+    .filter((p): p is string => typeof p === "string")
+    .filter((p) => ALLOWED_PHASES.includes(p));
+  // De-dupe while preserving order
+  const unique = Array.from(new Set(cleaned));
+  return unique.length ? unique : null;
+}
 
 router.get("/schools", async (req, res) => {
   try {
@@ -25,6 +37,7 @@ router.post("/schools", async (req, res) => {
       phone: phone ?? null,
       email: email ?? null,
       logoUrl: logo_url ?? null,
+      phases: normalizePhases(req.body?.phases),
     }).returning();
     res.status(201).json(school);
   } catch (err) {
@@ -61,7 +74,7 @@ router.patch("/schools/:id", async (req, res) => {
       return;
     }
 
-    const { name, address, phone, email, logo_url, primary_color, secondary_color, tuckshop_url } = req.body;
+    const { name, address, phone, email, logo_url, primary_color, secondary_color, tuckshop_url, phases } = req.body;
 
     const [updated] = await db
       .update(schools)
@@ -74,6 +87,7 @@ router.patch("/schools/:id", async (req, res) => {
         ...(primary_color !== undefined && { primaryColor: primary_color }),
         ...(secondary_color !== undefined && { secondaryColor: secondary_color }),
         ...(tuckshop_url !== undefined && { tuckshopUrl: tuckshop_url }),
+        ...(phases !== undefined && { phases: normalizePhases(phases) }),
       })
       .where(eq(schools.id, req.params.id))
       .returning();

@@ -13,6 +13,9 @@ export const schools = pgTable("schools", {
   primaryColor: text("primary_color"),
   secondaryColor: text("secondary_color"),
   tuckshopUrl: text("tuckshop_url"),
+  // Selected school phases (nursery | pre_primary | primary | high). Empty/null or
+  // a single value means the school is not split into per-phase tabs.
+  phases: text("phases").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -27,6 +30,9 @@ export const profiles = pgTable("profiles", {
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   schoolId: uuid("school_id"),
+  // The single school phase a teacher belongs to (nursery|pre_primary|primary|high).
+  // Null for non-teachers and legacy/unsplit schools.
+  phase: text("phase"),
   pushToken: text("push_token"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
@@ -40,6 +46,7 @@ export const classes = pgTable("classes", {
   gradeLevel: text("grade_level").notNull(),
   teacherId: uuid("teacher_id"),
   academicYear: text("academic_year"),
+  phase: text("phase"), // nursery|pre_primary|primary|high (null for unsplit schools)
   status: text("status").notNull().default("active"), // active | disabled
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
@@ -51,6 +58,7 @@ export const subjects = pgTable("subjects", {
   name: text("name").notNull(),
   code: text("code"),
   schoolId: uuid("school_id").notNull(),
+  phase: text("phase"), // nursery|pre_primary|primary|high (null for unsplit schools)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
