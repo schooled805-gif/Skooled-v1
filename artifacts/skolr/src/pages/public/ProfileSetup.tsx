@@ -12,6 +12,7 @@ import {
   BookOpen, Loader2, Users, Shield, Search, Check, X,
   ChevronRight, ChevronLeft, Building2, GraduationCap,
 } from 'lucide-react';
+import { PHASE_OPTIONS } from '@/lib/phases';
 
 type Role = 'admin' | 'parent' | 'teacher';
 interface School { id: string; name: string; address?: string | null; }
@@ -36,9 +37,10 @@ export default function ProfileSetup() {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
-  const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('join');
+  const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('create');
   const [newSchoolName, setNewSchoolName] = useState('');
   const [newSchoolAddress, setNewSchoolAddress] = useState('');
+  const [newSchoolPhases, setNewSchoolPhases] = useState<string[]>([]);
   const [loadingSchools, setLoadingSchools] = useState(false);
 
   // Children (parent)
@@ -96,7 +98,11 @@ export default function ProfileSetup() {
         const r = await fetch('/api/schools', {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ name: newSchoolName, address: newSchoolAddress || undefined }),
+          body: JSON.stringify({
+            name: newSchoolName,
+            address: newSchoolAddress || undefined,
+            phases: newSchoolPhases.length > 0 ? newSchoolPhases : undefined,
+          }),
         });
         if (!r.ok) throw new Error('Failed to create school');
         const school = await r.json();
@@ -262,6 +268,28 @@ export default function ProfileSetup() {
                     <div className="space-y-1.5">
                       <Label>Address <span className="text-gray-400 text-xs">(optional)</span></Label>
                       <Input value={newSchoolAddress} onChange={e => setNewSchoolAddress(e.target.value)} placeholder="123 Main St" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>School Phases <span className="text-gray-400 text-xs">(optional)</span></Label>
+                      <p className="text-xs text-gray-400">Select the phases your school runs. If you select more than one, classes, subjects, teachers, students and the timetable will be organised into tabs per phase.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PHASE_OPTIONS.map(opt => {
+                          const checked = newSchoolPhases.includes(opt.value);
+                          return (
+                            <button
+                              type="button"
+                              key={opt.value}
+                              onClick={() => setNewSchoolPhases(prev => checked ? prev.filter(p => p !== opt.value) : [...prev, opt.value])}
+                              className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${checked ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}
+                            >
+                              <span className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${checked ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                                {checked && <Check className="h-3 w-3 text-white" />}
+                              </span>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ) : (

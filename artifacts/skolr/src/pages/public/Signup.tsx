@@ -91,7 +91,7 @@ export default function Signup() {
   const [newSchoolName, setNewSchoolName] = useState('');
   const [newSchoolAddress, setNewSchoolAddress] = useState('');
   const [newSchoolPhases, setNewSchoolPhases] = useState<string[]>([]);
-  const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('join');
+  const [schoolMode, setSchoolMode] = useState<'join' | 'create'>('create');
   const [loadingSchools, setLoadingSchools] = useState(false);
 
   // Children state — parent enters student numbers to verify each child
