@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, boolean, integer, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, boolean, integer, varchar, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -327,6 +327,20 @@ export const activitySignups = pgTable("activity_signups", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ── DAILY_MENUS (meal menu for nursery / pre-primary schools without a tuckshop) ─
+export const dailyMenus = pgTable("daily_menus", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull(),
+  menuDate: text("menu_date").notNull(), // YYYY-MM-DD
+  meals: text("meals").notNull().default("[]"), // JSON array of { slot, description }
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (t) => ({
+  // One menu per school per date (enables atomic upsert).
+  schoolDateUnique: unique("daily_menus_school_date_unique").on(t.schoolId, t.menuDate),
+}));
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -351,3 +365,4 @@ export type SubjectTeacher = typeof subjectTeachers.$inferSelect;
 export type ActivityProvider = typeof activityProviders.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type ActivitySignup = typeof activitySignups.$inferSelect;
+export type DailyMenu = typeof dailyMenus.$inferSelect;

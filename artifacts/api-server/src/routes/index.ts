@@ -17,6 +17,7 @@ import teachersRouter from "./teachers";
 import tuckshopRouter from "./tuckshop";
 import feesRouter from "./fees";
 import activitiesRouter from "./activities";
+import dailyMenuRouter from "./dailyMenu";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(teachersRouter);
 router.use(tuckshopRouter);
 router.use(feesRouter);
 router.use(activitiesRouter);
+router.use(dailyMenuRouter);
 
 export default router;

@@ -21,7 +21,9 @@ import {
   Trophy,
   BookMarked,
   Menu,
+  UtensilsCrossed,
 } from 'lucide-react';
+import { isMealMenuSchool } from '@/lib/phases';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -118,6 +120,15 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, role }) =>
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   const config = getRoleConfig(role);
+  // Nursery/pre-primary-only schools have no tuckshop — show a daily Menu tab instead.
+  const mealMenu = isMealMenuSchool(school?.phases);
+  const links = mealMenu
+    ? config.links.map(link =>
+        link.path.endsWith('/tuckshop') && role === 'admin'
+          ? { name: 'Menu', path: '/admin/menu', icon: UtensilsCrossed }
+          : link
+      )
+    : config.links;
   const brandColor = school?.primaryColor || config.fallbackColor;
   const isValidHex = /^#[0-9A-Fa-f]{6}$/.test(brandColor);
   const accentColor = isValidHex ? brandColor : config.fallbackColor;
@@ -160,7 +171,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, role }) =>
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-        {config.links.map((link) => {
+        {links.map((link) => {
           const Icon = link.icon;
           const isActive = location === link.path || location.startsWith(`${link.path}/`);
           return (

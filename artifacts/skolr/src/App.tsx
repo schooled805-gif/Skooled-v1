@@ -27,6 +27,7 @@ import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminReports from "@/pages/admin/AdminReports";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminTuckshop from "@/pages/admin/AdminTuckshop";
+import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminFees from "@/pages/admin/AdminFees";
 import AdminSubjects from "@/pages/admin/AdminSubjects";
 import AdminActivities from "@/pages/admin/AdminActivities";
@@ -174,6 +175,9 @@ function Router() {
       </Route>
       <Route path="/admin/tuckshop">
         <AuthGuard allowedRoles={['admin']}><AdminTuckshop /></AuthGuard>
+      </Route>
+      <Route path="/admin/menu">
+        <AuthGuard allowedRoles={['admin']}><AdminMenu /></AuthGuard>
       </Route>
       <Route path="/admin/fees">
         <AuthGuard allowedRoles={['admin']}><AdminFees /></AuthGuard>

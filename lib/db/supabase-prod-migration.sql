@@ -64,3 +64,35 @@ CREATE TABLE IF NOT EXISTS activity_signups (
   school_id      uuid NOT NULL,
   created_at     timestamp DEFAULT now()
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- School phases + daily menus batch
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 6. school phases — schools split into per-phase tabs; teachers belong to one phase
+ALTER TABLE schools
+  ADD COLUMN IF NOT EXISTS phases text[]; -- nursery | pre_primary | primary | high
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS phase text;    -- single phase a teacher belongs to
+
+ALTER TABLE classes
+  ADD COLUMN IF NOT EXISTS phase text;
+
+ALTER TABLE subjects
+  ADD COLUMN IF NOT EXISTS phase text;
+
+-- 7. daily_menus — meal menu for nursery/pre-primary-only schools (no tuckshop)
+CREATE TABLE IF NOT EXISTS daily_menus (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id   uuid NOT NULL,
+  menu_date   text NOT NULL,                 -- YYYY-MM-DD
+  meals       text NOT NULL DEFAULT '[]',    -- JSON array of { slot, description }
+  created_by  text,
+  created_at  timestamp DEFAULT now(),
+  updated_at  timestamp
+);
+
+-- One menu per school per date (enables atomic upsert via ON CONFLICT)
+CREATE UNIQUE INDEX IF NOT EXISTS daily_menus_school_date_unique
+  ON daily_menus (school_id, menu_date);
