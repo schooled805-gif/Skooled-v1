@@ -96,3 +96,46 @@ CREATE TABLE IF NOT EXISTS daily_menus (
 -- One menu per school per date (enables atomic upsert via ON CONFLICT)
 CREATE UNIQUE INDEX IF NOT EXISTS daily_menus_school_date_unique
   ON daily_menus (school_id, menu_date);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Fees / online payments batch
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 8. fee_accounts — per-student fee balance
+CREATE TABLE IF NOT EXISTS fee_accounts (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id    uuid NOT NULL UNIQUE,
+  school_id     uuid NOT NULL,
+  balance_cents integer NOT NULL DEFAULT 0,
+  updated_at    timestamp DEFAULT now()
+);
+
+-- 9. fee_ledger — immutable ledger of charges/adjustments/payments
+CREATE TABLE IF NOT EXISTS fee_ledger (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id   uuid NOT NULL,
+  student_id   uuid NOT NULL,
+  school_id    uuid NOT NULL,
+  amount_cents integer NOT NULL,
+  type         text NOT NULL,                 -- charge | adjustment | payment
+  description  text,
+  reference_id text,                          -- e.g. fee_payments.id for payments
+  created_by   text,                          -- admin user_id, or "system" for provider payments
+  created_at   timestamp DEFAULT now()
+);
+
+-- 10. fee_payments — online payment attempts (Ozow / Paystack)
+CREATE TABLE IF NOT EXISTS fee_payments (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id         uuid NOT NULL,
+  school_id          uuid NOT NULL,
+  parent_user_id     text,
+  provider           text NOT NULL,           -- ozow | paystack
+  reference          text NOT NULL UNIQUE,    -- our server-generated unique ref
+  provider_reference text,                     -- provider's transaction id
+  amount_cents       integer NOT NULL,
+  status             text NOT NULL DEFAULT 'pending', -- pending | complete | failed | cancelled
+  ledger_entry_id    uuid,
+  created_at         timestamp DEFAULT now(),
+  updated_at         timestamp
+);
