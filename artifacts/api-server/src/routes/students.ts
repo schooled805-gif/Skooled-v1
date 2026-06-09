@@ -55,6 +55,7 @@ router.get("/students", async (req, res) => {
       date_of_birth: students.dateOfBirth,
       student_number: students.studentNumber,
       full_name: profiles.fullName,
+      email: profiles.email,
       avatar_url: profiles.avatarUrl,
       created_at: students.createdAt,
     }).from(students)
@@ -107,6 +108,7 @@ router.get("/students/:id", async (req, res) => {
       date_of_birth: students.dateOfBirth,
       student_number: students.studentNumber,
       full_name: profiles.fullName,
+      email: profiles.email,
       avatar_url: profiles.avatarUrl,
       created_at: students.createdAt,
     }).from(students).leftJoin(profiles, eq(students.profileId, profiles.id)).where(eq(students.id, id)).limit(1);

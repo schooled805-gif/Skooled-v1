@@ -194,6 +194,7 @@ export default function AdminStudents() {
                   <TableRow>
                     <TableHead className="pl-6">Student ID</TableHead>
                     <TableHead>Full Name</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Date of Birth</TableHead>
@@ -205,6 +206,7 @@ export default function AdminStudents() {
                     <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
                       <TableCell className="pl-6 font-mono text-sm text-blue-700 font-medium">{student.student_number ?? '—'}</TableCell>
                       <TableCell className="font-medium">{student.full_name ?? '—'}</TableCell>
+                      <TableCell className="text-gray-500 text-sm">{(student as any).email ?? '—'}</TableCell>
                       <TableCell><Badge variant="outline">{student.grade}</Badge></TableCell>
                       <TableCell className="text-gray-500">
                         {student.class_id ? (classMap.get(student.class_id) ?? student.class_id.slice(0, 8)) : <span className="text-red-400 text-xs">No class assigned</span>}
