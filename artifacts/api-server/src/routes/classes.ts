@@ -44,10 +44,12 @@ router.get("/classes", async (req, res) => {
 
 router.post("/classes", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const body = CreateClassBody.parse(req.body);
     const [cls] = await db.insert(classes).values({
       name: body.name,
-      schoolId: body.school_id,
+      schoolId: admin.schoolId,
       gradeLevel: body.grade_level,
       teacherId: body.teacher_id ?? null,
       academicYear: body.academic_year ?? null,
@@ -61,7 +63,10 @@ router.post("/classes", async (req, res) => {
 router.get("/classes/:id", async (req, res) => {
   try {
     const { id } = GetClassParams.parse(req.params);
-    const [cls] = await db.select().from(classes).where(eq(classes.id, id)).limit(1);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    const [cls] = await db.select().from(classes)
+      .where(and(eq(classes.id, id), eq(classes.schoolId, schoolId))).limit(1);
     if (!cls) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapClass(cls));
   } catch (err) {
@@ -71,6 +76,8 @@ router.get("/classes/:id", async (req, res) => {
 
 router.patch("/classes/:id", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const { id } = UpdateClassParams.parse(req.params);
     const body = UpdateClassBody.parse(req.body);
     const [cls] = await db.update(classes).set({
@@ -78,7 +85,7 @@ router.patch("/classes/:id", async (req, res) => {
       gradeLevel: body.grade_level,
       teacherId: body.teacher_id,
       updatedAt: new Date(),
-    }).where(eq(classes.id, id)).returning();
+    }).where(and(eq(classes.id, id), eq(classes.schoolId, admin.schoolId))).returning();
     if (!cls) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapClass(cls));
   } catch (err) {

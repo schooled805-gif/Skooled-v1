@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { timetableEntries, subjects, profiles, classes, students, parentStudentLinks } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import {
   ListTimetableEntriesQueryParams,
   CreateTimetableEntryBody,
@@ -9,7 +9,7 @@ import {
   UpdateTimetableEntryBody,
   DeleteTimetableEntryParams,
 } from "@workspace/api-zod";
-import { getRequesterProfile } from "../lib/scope";
+import { getRequesterProfile, requireAdmin } from "../lib/scope";
 import { handleRouteError } from "../lib/validation";
 
 const router = Router();
@@ -88,6 +88,8 @@ router.get("/timetable", async (req, res) => {
 
 router.post("/timetable", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const body = CreateTimetableEntryBody.parse(req.body);
     const [entry] = await db.insert(timetableEntries).values({
       studentId: body.student_id ?? null,
@@ -99,7 +101,7 @@ router.post("/timetable", async (req, res) => {
       endTime: body.end_time,
       room: body.room ?? null,
       type: body.type,
-      schoolId: body.school_id,
+      schoolId: admin.schoolId,
     }).returning();
     res.status(201).json({ ...entry, subject_name: null, teacher_name: null, class_name: null });
   } catch (err) {
@@ -109,6 +111,8 @@ router.post("/timetable", async (req, res) => {
 
 router.patch("/timetable/:id", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const { id } = UpdateTimetableEntryParams.parse(req.params);
     const body = UpdateTimetableEntryBody.parse(req.body);
     const [entry] = await db.update(timetableEntries).set({
@@ -117,7 +121,7 @@ router.patch("/timetable/:id", async (req, res) => {
       endTime: body.end_time,
       room: body.room,
       type: body.type,
-    }).where(eq(timetableEntries.id, id)).returning();
+    }).where(and(eq(timetableEntries.id, id), eq(timetableEntries.schoolId, admin.schoolId))).returning();
     if (!entry) { res.status(404).json({ error: "Not found" }); return; }
     res.json({ ...entry, subject_name: null, teacher_name: null, class_name: null });
   } catch (err) {
@@ -127,8 +131,10 @@ router.patch("/timetable/:id", async (req, res) => {
 
 router.delete("/timetable/:id", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const { id } = DeleteTimetableEntryParams.parse(req.params);
-    await db.delete(timetableEntries).where(eq(timetableEntries.id, id));
+    await db.delete(timetableEntries).where(and(eq(timetableEntries.id, id), eq(timetableEntries.schoolId, admin.schoolId)));
     res.status(204).end();
   } catch (err) {
     handleRouteError(req, res, err);
