@@ -36,6 +36,18 @@ Supabase, and Supabase's poolers behave unlike a normal Postgres.
   `--> statement-breakpoint`). The pooler occasionally rejects a *fresh*
   connection with a bogus "password authentication failed" — reuse one client and
   retry connects rather than using a Pool that reconnects per query.
+- Applying ad-hoc DDL to Supabase prod from Replit (idempotent `CREATE TABLE IF
+  NOT EXISTS` etc.): build a `pg.Client` from DISCRETE parts, not a URL. The
+  `SUPABASE_POSTGRES_URL` / `SUPABASE_DB_URL` secrets are the dashboard CONNECTION
+  TEMPLATE containing a literal `[YOUR-PASSWORD]` placeholder (and may concatenate
+  two URLs) — never usable as a connection string. Extract `user` (must keep the
+  `postgres.<ref>` suffix) + `host` from the template, force `port:6543`,
+  `database:"postgres"`, `ssl:{rejectUnauthorized:false}`, and supply the real
+  password as the discrete `password` field from `SUPABASE_DB_PASSWORD`. If auth
+  fails with 28P01 reporting user just `"postgres"` (suffix dropped) or the
+  password value looks truncated (ends in `...`), the secret is stale — re-request
+  it via `requestEnvVar`. Local dev DB (`DATABASE_URL`, helium) is untouched by all
+  this — the dev schema sync (`push-force`) does NOT propagate to Supabase.
 
 ## Vercel build gotcha: "src/routes/*.ts: Emit skipped"
 **Why:** Vercel's `@vercel/node` runs `tsc` on the TypeScript source of any
