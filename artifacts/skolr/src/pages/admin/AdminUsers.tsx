@@ -56,7 +56,7 @@ export default function AdminUsers() {
   const create = useCreateProfile();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'teacher', phone: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'parent', phone: '' });
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: getListProfilesQueryKey() });
@@ -94,10 +94,12 @@ export default function AdminUsers() {
     onError: () => toast({ title: 'Could not remove user', variant: 'destructive' }),
   });
 
-  const filtered = ((profiles ?? []) as Profile[]).filter(p =>
-    p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = ((profiles ?? []) as Profile[])
+    .filter(p => p.role === 'admin' || p.role === 'parent')
+    .filter(p =>
+      p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.email?.toLowerCase().includes(search.toLowerCase())
+    );
 
   const handleCreate = () => {
     if (!schoolId) return;
@@ -106,7 +108,7 @@ export default function AdminUsers() {
         toast({ title: 'User profile created' });
         invalidate();
         setOpen(false);
-        setForm({ full_name: '', email: '', role: 'teacher', phone: '' });
+        setForm({ full_name: '', email: '', role: 'parent', phone: '' });
       },
       onError: (err: any) => {
         const msg: string =
@@ -124,7 +126,7 @@ export default function AdminUsers() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Users</h1>
-            <p className="text-gray-500 mt-1">Manage all user profiles and roles</p>
+            <p className="text-gray-500 mt-1">Manage admin and parent accounts</p>
           </div>
           <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700" data-testid="button-new-user">
             <Plus className="h-4 w-4 mr-2" /> Add User
@@ -260,9 +262,7 @@ export default function AdminUsers() {
                 data-testid="select-role"
               >
                 <option value="admin">Admin</option>
-                <option value="teacher">Teacher</option>
                 <option value="parent">Parent</option>
-                <option value="student">Student</option>
               </select>
             </div>
             <div className="space-y-1">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useListApprovals, useListAnnouncements, useListParentStudentLinks } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar, X } from 'lucide-react';
+import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar, X, Wallet, ShoppingBag, Trophy } from 'lucide-react';
 
 interface EnrichedLink {
   id: string;
@@ -235,6 +235,9 @@ export default function ParentDashboard() {
         {/* Quick nav */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
+            { label: 'Pay Fees', href: '/parent/account', color: 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200', icon: <Wallet className="h-4 w-4 mr-2" /> },
+            { label: 'Tuckshop', href: '/parent/tuckshop', color: 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200', icon: <ShoppingBag className="h-4 w-4 mr-2" /> },
+            { label: 'Activities', href: '/parent/activities', color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200', icon: <Trophy className="h-4 w-4 mr-2" /> },
             { label: 'Schedule', href: '/parent/schedule', color: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200', icon: <Calendar className="h-4 w-4 mr-2" /> },
             { label: 'Approvals', href: '/parent/approvals', color: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200', icon: <CheckSquare className="h-4 w-4 mr-2" /> },
             { label: 'Messages', href: '/parent/messages', color: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200', icon: <MessageSquare className="h-4 w-4 mr-2" /> },

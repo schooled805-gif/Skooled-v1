@@ -18,6 +18,8 @@ import {
   Palette,
   ShoppingBag,
   Wallet,
+  Trophy,
+  BookMarked,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -45,6 +47,7 @@ const getRoleConfig = (role: string) => {
           { name: 'Tuckshop', path: '/parent/tuckshop', icon: ShoppingBag },
           { name: 'Calendar', path: '/parent/calendar', icon: CalendarDays },
           { name: 'Schedule', path: '/parent/schedule', icon: Calendar },
+          { name: 'Activities', path: '/parent/activities', icon: Trophy },
           { name: 'Approvals', path: '/parent/approvals', icon: CheckSquare },
           { name: 'Messages', path: '/parent/messages', icon: MessageSquare },
           { name: 'Reports', path: '/parent/reports', icon: FileText },
@@ -85,7 +88,9 @@ const getRoleConfig = (role: string) => {
           { name: 'Teachers',      path: '/admin/teachers',     icon: UserRound },
           { name: 'Students',      path: '/admin/students',     icon: GraduationCap },
           { name: 'Classes',       path: '/admin/classes',      icon: BookOpen },
+          { name: 'Subjects',      path: '/admin/subjects',     icon: BookMarked },
           { name: 'Timetable',     path: '/admin/timetable',    icon: Calendar },
+          { name: 'Activities',    path: '/admin/activities',   icon: Trophy },
           { name: 'Calendar',      path: '/admin/calendar',     icon: CalendarDays },
           { name: 'Events',        path: '/admin/events',       icon: Megaphone },
           { name: 'Tuckshop',      path: '/admin/tuckshop',     icon: ShoppingBag },

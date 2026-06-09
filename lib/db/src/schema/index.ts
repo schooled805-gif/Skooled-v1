@@ -40,6 +40,7 @@ export const classes = pgTable("classes", {
   gradeLevel: text("grade_level").notNull(),
   teacherId: uuid("teacher_id"),
   academicYear: text("academic_year"),
+  status: text("status").notNull().default("active"), // active | disabled
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
 });
@@ -270,6 +271,54 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ── SUBJECT_TEACHERS (many-to-many: which teachers teach a subject) ────────────
+export const subjectTeachers = pgTable("subject_teachers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  subjectId: uuid("subject_id").notNull(),
+  teacherId: uuid("teacher_id").notNull(),
+  schoolId: uuid("school_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── ACTIVITY_PROVIDERS (external companies that offer extra-mural activities) ──
+export const activityProviders = pgTable("activity_providers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  schoolId: uuid("school_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── ACTIVITIES (extra-mural; internal coach OR external provider) ──────────────
+export const activities = pgTable("activities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category"), // sport | music | cultural | academic | other
+  isExternal: boolean("is_external").notNull().default(false),
+  coachTeacherId: uuid("coach_teacher_id"), // profiles.id (internal coach/teacher)
+  providerId: uuid("provider_id"), // activity_providers.id (external company)
+  dayOfWeek: text("day_of_week"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  location: text("location"),
+  schoolId: uuid("school_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── ACTIVITY_SIGNUPS (a student enrolled in an activity by their parent) ───────
+export const activitySignups = pgTable("activity_signups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  activityId: uuid("activity_id").notNull(),
+  studentId: uuid("student_id").notNull(),
+  parentUserId: text("parent_user_id"),
+  status: text("status").notNull().default("active"), // active | cancelled
+  schoolId: uuid("school_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -290,3 +339,7 @@ export type Report = typeof reports.$inferSelect;
 export type FeeAccount = typeof feeAccounts.$inferSelect;
 export type FeeLedgerEntry = typeof feeLedger.$inferSelect;
 export type FeePayment = typeof feePayments.$inferSelect;
+export type SubjectTeacher = typeof subjectTeachers.$inferSelect;
+export type ActivityProvider = typeof activityProviders.$inferSelect;
+export type Activity = typeof activities.$inferSelect;
+export type ActivitySignup = typeof activitySignups.$inferSelect;

@@ -27,7 +27,7 @@ function getUploadsDir(): string {
   return dir;
 }
 
-type ReportRow = { student_id: string | null; visible_to_student: boolean | null };
+type ReportRow = { student_id: string | null; visible_to_student: boolean | null; subject?: string | null };
 
 /**
  * Build a role-aware entitlement for report reads/downloads. Returns the
@@ -35,8 +35,10 @@ type ReportRow = { student_id: string | null; visible_to_student: boolean | null
  * visible to them:
  *  - admin:   every report in their school
  *  - teacher: reports for students in classes they teach
- *  - parent:  reports for their linked children
- *  - student: only their own reports that are marked visible
+ *  - parent:  termly/overall reports for their linked children (not per-subject)
+ *  - student: only their own overall reports that are marked visible
+ * Per-subject reports (subject IS NOT NULL) are kept on the teacher dashboard
+ * only; parents and students see the termly overall report covering all subjects.
  * Any other role sees nothing. The UI does no ownership filtering, so this is
  * the only thing preventing cross-student report disclosure within a school.
  */
@@ -61,13 +63,13 @@ async function reportEntitlement(
     const rows = await db.select({ sid: parentStudentLinks.studentId }).from(parentStudentLinks)
       .where(eq(parentStudentLinks.parentUserId, requester.userId));
     const allowed = new Set(rows.map(r => r.sid));
-    return { schoolId, filter: r => !!r.student_id && allowed.has(r.student_id) };
+    return { schoolId, filter: r => !!r.student_id && allowed.has(r.student_id) && !r.subject };
   }
   if (requester.role === "student") {
     const [me] = await db.select({ id: students.id }).from(students)
       .where(eq(students.profileId, requester.id)).limit(1);
     const myId = me?.id ?? null;
-    return { schoolId, filter: r => !!myId && r.student_id === myId && !!r.visible_to_student };
+    return { schoolId, filter: r => !!myId && r.student_id === myId && !!r.visible_to_student && !r.subject };
   }
   return { schoolId, filter: () => false };
 }
@@ -131,6 +133,7 @@ router.get("/uploads/:schoolId/:name", async (req, res) => {
     const refs = await db.select({
       student_id: reports.studentId,
       visible_to_student: reports.visibleToStudent,
+      subject: reports.subject,
     }).from(reports).where(and(eq(reports.schoolId, ent.schoolId), eq(reports.fileUrl, fileUrl)));
     if (!refs.some(ent.filter)) {
       res.status(404).json({ error: "File not found" });

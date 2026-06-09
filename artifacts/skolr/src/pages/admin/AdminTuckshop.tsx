@@ -78,7 +78,7 @@ export default function AdminTuckshop() {
   const qc = useQueryClient();
   const schoolId = school?.id ?? profile?.school_id ?? "";
 
-  const [activeTab, setActiveTab] = useState("accounts");
+  const [activeTab, setActiveTab] = useState("menu");
   const [menuDialog, setMenuDialog] = useState(false);
   const [editMenu, setEditMenu] = useState<Menu | null>(null);
   const [weekLabel, setWeekLabel] = useState("");
@@ -99,12 +99,6 @@ export default function AdminTuckshop() {
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["tuckshop-orders-admin", schoolId],
     queryFn: () => apiFetch(`/api/tuckshop/orders?school_id=${schoolId}`, session?.access_token ?? ""),
-    enabled: !!schoolId,
-  });
-
-  const { data: accounts = [] } = useQuery<Account[]>({
-    queryKey: ["tuckshop-accounts", schoolId],
-    queryFn: () => apiFetch(`/api/tuckshop/accounts?school_id=${schoolId}`, session?.access_token ?? ""),
     enabled: !!schoolId,
   });
 
@@ -181,26 +175,12 @@ export default function AdminTuckshop() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Tuckshop</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage active accounts, the weekly menu and top-up settings</p>
+            <p className="text-sm text-gray-500 mt-0.5">Manage the weekly menu and top-up settings</p>
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="p-2 bg-blue-50 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div>
-              <div>
-                <p className="text-xs text-gray-500">Active Accounts</p>
-                <p className="text-xl font-bold text-gray-900">{accounts.length}</p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="accounts">Active Accounts</TabsTrigger>
             <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -240,26 +220,6 @@ export default function AdminTuckshop() {
                             {!item.available && <p className="text-xs text-red-500">Unavailable</p>}
                           </div>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── ACTIVE ACCOUNTS TAB ── */}
-          <TabsContent value="accounts" className="mt-4">
-            {accounts.length === 0 ? (
-              <Card><CardContent className="p-12 text-center text-gray-400">No student tuckshop accounts yet</CardContent></Card>
-            ) : (
-              <div className="space-y-2">
-                {accounts.map(acc => (
-                  <Card key={acc.id}>
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{acc.student_name ?? "Unknown Student"}</p>
-                        <p className="text-sm text-gray-500">Balance: <span className={`font-bold ${acc.balance_cents < 500 ? "text-red-600" : "text-green-600"}`}>R {acc.balance_display}</span></p>
                       </div>
                     </CardContent>
                   </Card>

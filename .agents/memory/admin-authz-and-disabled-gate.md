@@ -13,6 +13,14 @@ Most write routes historically only scoped by school (`getRequesterSchoolId` / t
 
 **How to apply:** when adding any admin-only endpoint, gate with `requireAdmin` first, then tenant-check the target. Don't assume other existing routes already do this — many only scope by school.
 
+# Tenant-scope dependent/cascade deletes too
+
+When a delete cascades to child rows (e.g. deleting an activity also clears `activity_signups`; deleting a subject clears `subject_teachers`), the **child delete must also be school-scoped**, not just keyed by the parent FK. A delete like `WHERE activityId = :id` (no `schoolId`) lets a same-tenant admin wipe another school's child rows by guessing the parent id, even when the parent delete itself is correctly scoped (it just affects 0 rows).
+
+**Why:** the scoped parent delete gives false confidence; the unscoped child delete already ran first (architect-flagged cross-tenant IDOR).
+
+**How to apply:** add `eq(child.schoolId, admin.schoolId)` to every dependent delete's WHERE alongside the FK match.
+
 # Disabled-user enforcement
 
 `verifySupabaseJwt` (middleware/auth.ts) blocks `profile.status === "disabled"` on all protected routes, EXCEPT `/profiles/me` (so the disabled client can still fetch its own status and render the disabled-account screen). A missing profile (first login before profile setup) is NOT blocked.

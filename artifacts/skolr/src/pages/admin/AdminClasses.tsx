@@ -7,22 +7,58 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useListClasses, useCreateClass, getListClassesQueryKey } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Plus, BookOpen } from 'lucide-react';
+import { Loader2, Plus, BookOpen, Ban, CircleCheck, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface School { id: string; name: string; }
 
 export default function AdminClasses() {
-  const { schoolId } = useAuth();
+  const { schoolId, session } = useAuth();
+  const token = session?.access_token ?? '';
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: classes, isLoading } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
   const create = useCreateClass();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', grade_level: '', academic_year: '' });
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+
+  const setStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'active' | 'disabled' }) => {
+      const res = await fetch(`/api/classes/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as any)?.error ?? 'Failed');
+      return res.json();
+    },
+    onSuccess: (_d, { status }) => {
+      qc.invalidateQueries({ queryKey: getListClassesQueryKey() });
+      toast({ title: status === 'disabled' ? 'Class disabled' : 'Class enabled' });
+    },
+    onError: (err: any) => toast({ title: 'Action failed', description: err?.message, variant: 'destructive' }),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/classes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok && res.status !== 204) throw new Error(((await res.json().catch(() => ({}))) as any)?.error ?? 'Failed');
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getListClassesQueryKey() });
+      setDeleteTarget(null);
+      toast({ title: 'Class removed' });
+    },
+    onError: (err: any) => toast({ title: 'Could not remove class', description: err?.message, variant: 'destructive' }),
+  });
 
   // Fallback school selection if schoolId not in auth context
   const [schools, setSchools] = useState<School[]>([]);
@@ -93,8 +129,8 @@ export default function AdminClasses() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {classes.map(cls => (
-              <Card key={cls.id} className="hover:shadow-md transition-shadow" data-testid={`card-class-${cls.id}`}>
-                <CardContent className="p-4">
+              <Card key={cls.id} className={`hover:shadow-md transition-shadow ${(cls as any).status === 'disabled' ? 'opacity-60' : ''}`} data-testid={`card-class-${cls.id}`}>
+                <CardContent className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -105,7 +141,27 @@ export default function AdminClasses() {
                         <p className="text-xs text-gray-400">{cls.academic_year ?? '—'}</p>
                       </div>
                     </div>
-                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">{cls.grade_level ?? '—'}</Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">{cls.grade_level ?? '—'}</Badge>
+                      {(cls as any).status === 'disabled' && <Badge className="bg-gray-200 text-gray-600 hover:bg-gray-200">Disabled</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t">
+                    {(cls as any).status === 'disabled' ? (
+                      <Button size="sm" variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1" disabled={setStatus.isPending}
+                        onClick={() => setStatus.mutate({ id: cls.id, status: 'active' })} data-testid={`button-enable-${cls.id}`}>
+                        <CircleCheck className="h-3.5 w-3.5" /> Enable
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="text-amber-700 border-amber-200 hover:bg-amber-50 gap-1" disabled={setStatus.isPending}
+                        onClick={() => setStatus.mutate({ id: cls.id, status: 'disabled' })} data-testid={`button-disable-${cls.id}`}>
+                        <Ban className="h-3.5 w-3.5" /> Disable
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1" disabled={remove.isPending}
+                      onClick={() => setDeleteTarget(cls)} data-testid={`button-delete-${cls.id}`}>
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -178,6 +234,28 @@ export default function AdminClasses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this class?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {deleteTarget?.name ?? 'this class'}. If students are still enrolled the delete will be blocked — disable the class instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={remove.isPending}
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) remove.mutate(deleteTarget.id); }}
+              data-testid="button-confirm-delete-class"
+            >
+              {remove.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete class'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PortalLayout>
   );
 }

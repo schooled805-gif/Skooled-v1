@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useListTimetableEntries, useCreateTimetableEntry, useDeleteTimetableEntry, getListTimetableEntriesQueryKey } from '@workspace/api-client-react';
+import { useListTimetableEntries, useCreateTimetableEntry, useDeleteTimetableEntry, getListTimetableEntriesQueryKey, useListSubjects, useListClasses, useListProfiles } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Plus, Trash2, Clock } from 'lucide-react';
@@ -21,18 +21,31 @@ export default function AdminTimetable() {
   const { data: entries, isLoading } = useListTimetableEntries();
   const create = useCreateTimetableEntry();
   const del = useDeleteTimetableEntry();
+  const { data: subjects } = useListSubjects();
+  const { data: classesList } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
+  const { data: profilesList } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
+  const teachers = ((profilesList ?? []) as any[]).filter((p) => p.role === 'teacher');
+  const activeClasses = ((classesList ?? []) as any[]).filter((c) => c.status !== 'disabled');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ class_id: '', subject_id: '', teacher_id: '', day_of_week: 'Monday', start_time: '08:00', end_time: '09:00', room: '', type: 'lesson' });
 
   const handleCreate = () => {
     if (!schoolId) return;
+    if (!form.subject_id || !form.class_id || !form.teacher_id) {
+      toast({ title: 'Please choose a subject, class and teacher', variant: 'destructive' });
+      return;
+    }
     create.mutate({ data: { ...form, school_id: schoolId } }, {
       onSuccess: () => {
         toast({ title: 'Timetable entry added' });
         qc.invalidateQueries({ queryKey: getListTimetableEntriesQueryKey() });
         setOpen(false);
       },
-      onError: () => toast({ title: 'Error', variant: 'destructive' }),
+      onError: (err: any) => toast({
+        title: 'Could not add entry',
+        description: err?.response?.data?.error ?? err?.message ?? 'Please try again',
+        variant: 'destructive',
+      }),
     });
   };
 
@@ -97,10 +110,28 @@ export default function AdminTimetable() {
           <DialogHeader><DialogTitle>Add Timetable Entry</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Subject ID</Label><Input value={form.subject_id} onChange={e => setForm(f => ({ ...f, subject_id: e.target.value }))} data-testid="input-subject-id" /></div>
-              <div className="space-y-1"><Label>Class ID</Label><Input value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))} data-testid="input-class-id" /></div>
+              <div className="space-y-1">
+                <Label>Subject</Label>
+                <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.subject_id} onChange={e => setForm(f => ({ ...f, subject_id: e.target.value }))} data-testid="select-subject">
+                  <option value="">Select subject…</option>
+                  {((subjects ?? []) as any[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Class</Label>
+                <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))} data-testid="select-class">
+                  <option value="">Select class…</option>
+                  {activeClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="space-y-1"><Label>Teacher ID</Label><Input value={form.teacher_id} onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))} data-testid="input-teacher-id" /></div>
+            <div className="space-y-1">
+              <Label>Teacher</Label>
+              <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.teacher_id} onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))} data-testid="select-teacher">
+                <option value="">Select teacher…</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>
+            </div>
             <div className="space-y-1">
               <Label>Day</Label>
               <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.day_of_week} onChange={e => setForm(f => ({ ...f, day_of_week: e.target.value }))} data-testid="select-day">
