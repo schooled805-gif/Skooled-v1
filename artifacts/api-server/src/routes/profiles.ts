@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { profiles } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getRequesterSchoolId, requireAdmin } from "../lib/scope";
+import { supabaseAdmin } from "../lib/supabase";
 import { normalizePhase } from "../lib/validation";
 import {
   ListProfilesQueryParams,
@@ -246,6 +247,17 @@ router.delete("/profiles/:id", async (req, res) => {
     if (target.id === admin.id) { res.status(400).json({ error: "You cannot remove your own account" }); return; }
 
     await db.delete(profiles).where(eq(profiles.id, id));
+
+    // Also remove the underlying Supabase Auth account so the email is freed up
+    // and the user can sign up again. Best-effort: a missing/already-deleted auth
+    // user must not fail the profile deletion.
+    if (target.userId) {
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(target.userId);
+      if (authErr) {
+        req.log.warn({ err: authErr, userId: target.userId }, "Profile deleted but Supabase auth user removal failed");
+      }
+    }
+
     res.status(204).send();
   } catch (err) {
     req.log.error(err);
