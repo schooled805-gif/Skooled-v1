@@ -13,6 +13,7 @@ import Signup from "@/pages/public/Signup";
 import ProfileSetup from "@/pages/public/ProfileSetup";
 import PendingApproval from "@/pages/public/PendingApproval";
 import ResetPassword from "@/pages/public/ResetPassword";
+import SetPassword from "@/pages/public/SetPassword";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminBranding from "@/pages/admin/AdminBranding";
@@ -257,15 +258,33 @@ function Router() {
   );
 }
 
+// Invite / password-recovery links return to the app with the Supabase tokens in
+// the URL hash (e.g. "#access_token=...&type=invite"). In that case we must NOT
+// drop the user into their portal — they have to set a password first. We detect
+// the hash once at load (it is present before any async auth state settles) and
+// render the SetPassword flow, bypassing the normal authenticated routes.
+function isPasswordSetupLink(): boolean {
+  if (typeof window === "undefined") return false;
+  return /type=(invite|recovery)/.test(window.location.hash || "");
+}
+
+function AppRoutes() {
+  const [passwordSetup] = React.useState(isPasswordSetupLink);
+  if (passwordSetup) return <SetPassword />;
+  return (
+    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <Router />
+    </WouterRouter>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PhaseProvider>
           <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
+            <AppRoutes />
             <Toaster />
           </TooltipProvider>
         </PhaseProvider>

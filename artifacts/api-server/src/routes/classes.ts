@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { classes, students } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { getRequesterSchoolId, requireAdmin } from "../lib/scope";
+import { getRequesterSchoolId, getRequesterProfile, getTeacherClassIds, requireAdmin } from "../lib/scope";
 import { handleRouteError, normalizePhase } from "../lib/validation";
 import {
   ListClassesQueryParams,
@@ -33,11 +33,17 @@ function mapClass(c: typeof classes.$inferSelect) {
 router.get("/classes", async (req, res) => {
   try {
     ListClassesQueryParams.parse(req.query);
-    const schoolId = await getRequesterSchoolId(req);
-    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
 
-    const rows = await db.select().from(classes).where(eq(classes.schoolId, schoolId));
-    res.json(rows.map(mapClass));
+    const rows = await db.select().from(classes).where(eq(classes.schoolId, requester.schoolId));
+    // A teacher only sees the classes they teach (head teacher or via timetable).
+    let result = rows;
+    if (requester.role === "teacher") {
+      const allowed = await getTeacherClassIds(requester.id, requester.schoolId);
+      result = rows.filter((c) => allowed.has(c.id));
+    }
+    res.json(result.map(mapClass));
   } catch (err) {
     handleRouteError(req, res, err);
   }
@@ -49,6 +55,16 @@ router.post("/classes", async (req, res) => {
     if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const body = CreateClassBody.parse(req.body);
     const phase = normalizePhase(req.body?.phase);
+    // Reject duplicate class names within the same school + phase.
+    const desired = body.name?.trim().toLowerCase();
+    if (desired) {
+      const existingRows = await db.select({ name: classes.name, phase: classes.phase })
+        .from(classes).where(eq(classes.schoolId, admin.schoolId));
+      const dup = existingRows.find(
+        (c) => c.name?.trim().toLowerCase() === desired && (c.phase ?? null) === (phase ?? null),
+      );
+      if (dup) { res.status(409).json({ error: `A class named "${body.name}" already exists` }); return; }
+    }
     const [cls] = await db.insert(classes).values({
       name: body.name,
       schoolId: admin.schoolId,

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, profiles, schools, classes, subjects, timetableEntries, parentStudentLinks } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { getRequesterSchoolId } from "../lib/scope";
+import { getRequesterProfile, getTeacherClassIds, requireAdmin } from "../lib/scope";
 import {
   ListStudentsQueryParams,
   CreateStudentBody,
@@ -43,8 +43,8 @@ router.get("/students/lookup", async (req, res) => {
 router.get("/students", async (req, res) => {
   try {
     const query = ListStudentsQueryParams.parse(req.query);
-    const schoolId = await getRequesterSchoolId(req);
-    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
 
     const rows = await db.select({
       id: students.id,
@@ -60,10 +60,15 @@ router.get("/students", async (req, res) => {
       created_at: students.createdAt,
     }).from(students)
       .leftJoin(profiles, eq(students.profileId, profiles.id))
-      .where(eq(students.schoolId, schoolId));
+      .where(eq(students.schoolId, requester.schoolId));
 
     // school_id is enforced server-side; only optional in-school filters remain.
     let result = rows;
+    // A teacher only sees students in the classes they teach, never the whole school.
+    if (requester.role === "teacher") {
+      const allowed = await getTeacherClassIds(requester.id, requester.schoolId);
+      result = result.filter((s) => s.class_id && allowed.has(s.class_id));
+    }
     if (query.class_id) result = result.filter((s) => s.class_id === query.class_id);
     res.json(result);
   } catch (err) {
@@ -98,6 +103,8 @@ router.post("/students", async (req, res) => {
 
 router.get("/students/:id", async (req, res) => {
   try {
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
     const { id } = GetStudentParams.parse(req.params);
     const [row] = await db.select({
       id: students.id,
@@ -111,7 +118,8 @@ router.get("/students/:id", async (req, res) => {
       email: profiles.email,
       avatar_url: profiles.avatarUrl,
       created_at: students.createdAt,
-    }).from(students).leftJoin(profiles, eq(students.profileId, profiles.id)).where(eq(students.id, id)).limit(1);
+    }).from(students).leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(and(eq(students.id, id), eq(students.schoolId, requester.schoolId))).limit(1);
     if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(row);
   } catch (err) {
@@ -122,8 +130,12 @@ router.get("/students/:id", async (req, res) => {
 
 router.delete("/students/:id", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const { id } = GetStudentParams.parse(req.params);
-    await db.delete(students).where(eq(students.id, id));
+    const deleted = await db.delete(students)
+      .where(and(eq(students.id, id), eq(students.schoolId, admin.schoolId))).returning();
+    if (deleted.length === 0) { res.status(404).json({ error: "Not found" }); return; }
     res.status(204).send();
   } catch (err) {
     req.log.error(err);
@@ -299,13 +311,15 @@ router.get("/students/:id/teachers", async (req, res) => {
 
 router.patch("/students/:id", async (req, res) => {
   try {
+    const admin = await requireAdmin(req);
+    if (!admin || !admin.schoolId) { res.status(403).json({ error: "Admin access required" }); return; }
     const { id } = UpdateStudentParams.parse(req.params);
     const body = UpdateStudentBody.parse(req.body);
     const [student] = await db.update(students).set({
       classId: body.class_id,
       grade: body.grade,
       dateOfBirth: body.date_of_birth,
-    }).where(eq(students.id, id)).returning();
+    }).where(and(eq(students.id, id), eq(students.schoolId, admin.schoolId))).returning();
     if (!student) { res.status(404).json({ error: "Not found" }); return; }
     const [prof] = await db.select().from(profiles).where(eq(profiles.id, student.profileId)).limit(1);
     res.json({ ...student, full_name: prof?.fullName ?? null, avatar_url: prof?.avatarUrl ?? null });

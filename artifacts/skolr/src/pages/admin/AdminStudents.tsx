@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhase } from '@/contexts/PhaseContext';
 import { PhaseTabs } from '@/components/PhaseTabs';
-import { Loader2, Plus, Search, GraduationCap, Download, Upload, Trash2, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Search, GraduationCap, Download, Upload, Trash2, AlertCircle, Pencil } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 
@@ -45,6 +45,9 @@ export default function AdminStudents() {
   const [importing, setImporting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ full_name: '', email: '', grade: '', class_id: '', date_of_birth: '' });
+  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ class_id: '', grade: '' });
+  const [editing, setEditing] = useState(false);
 
   const classMap = new Map((classes ?? []).map(c => [c.id, c.name ?? '']));
   const studentPhase = (s: any): string | null => (s.class_id ? classPhaseMap.get(s.class_id) ?? null : null);
@@ -79,6 +82,33 @@ export default function AdminStudents() {
     } catch (err: any) {
       toast({ title: 'Failed to add student', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
+  };
+
+  const openEdit = (s: any) => {
+    setEditTarget(s);
+    setEditForm({ class_id: s.class_id ?? '', grade: s.grade ?? '' });
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    if (!editForm.class_id) {
+      toast({ title: 'Class is required', description: 'A student must be assigned to a class.', variant: 'destructive' });
+      return;
+    }
+    setEditing(true);
+    try {
+      const res = await fetch(`/api/students/${editTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
+        body: JSON.stringify({ class_id: editForm.class_id, grade: editForm.grade.trim() || undefined }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to update student'); }
+      toast({ title: 'Student updated' });
+      qc.invalidateQueries({ queryKey: getListStudentsQueryKey() });
+      setEditTarget(null);
+    } catch (err: any) {
+      toast({ title: 'Failed to update student', description: err.message, variant: 'destructive' });
+    } finally { setEditing(false); }
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -213,9 +243,14 @@ export default function AdminStudents() {
                       </TableCell>
                       <TableCell className="text-gray-400 text-sm">{student.date_of_birth ?? '—'}</TableCell>
                       <TableCell>
-                        <button onClick={() => handleDelete(student.id, student.full_name ?? 'student')} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEdit(student)} className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" data-testid={`button-edit-${student.id}`}>
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => handleDelete(student.id, student.full_name ?? 'student')} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -282,6 +317,34 @@ export default function AdminStudents() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={saving || !form.full_name || !form.email || !form.grade || !form.class_id} className="bg-blue-600 hover:bg-blue-700" data-testid="button-create-student">
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Enrol Student
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit {editTarget?.full_name ?? 'Student'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label>Grade</Label>
+              <Input value={editForm.grade} onChange={e => setEditForm(f => ({ ...f, grade: e.target.value }))} placeholder="e.g. Grade 10" data-testid="input-edit-grade" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Class <span className="text-red-500">*</span></Label>
+              <select
+                className={`w-full border rounded-md px-3 py-2 text-sm ${!editForm.class_id ? 'border-orange-300 bg-orange-50' : 'border-gray-200'}`}
+                value={editForm.class_id} onChange={e => setEditForm(f => ({ ...f, class_id: e.target.value }))} data-testid="select-edit-class"
+              >
+                <option value="">— Select a class (required) —</option>
+                {phaseClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}</option>)}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={editing || !editForm.class_id} className="bg-blue-600 hover:bg-blue-700" data-testid="button-save-student">
+              {editing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

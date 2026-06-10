@@ -35,17 +35,24 @@ router.post("/subjects", async (req, res) => {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
-    const body = CreateSubjectBody.parse(req.body);
-    const name = str(body.name);
+    const name = str(req.body?.name);
     if (!name) {
       res.status(400).json({ error: "name: Subject name is required" });
       return;
     }
+    const phase = normalizePhase(req.body?.phase);
+    // Reject duplicate subject names within the same school + phase.
+    const existingRows = await db.select({ name: subjects.name, phase: subjects.phase })
+      .from(subjects).where(eq(subjects.schoolId, admin.schoolId));
+    const dup = existingRows.find(
+      (s) => s.name?.trim().toLowerCase() === name.toLowerCase() && (s.phase ?? null) === (phase ?? null),
+    );
+    if (dup) { res.status(409).json({ error: `A subject named "${name}" already exists` }); return; }
     const [subject] = await db.insert(subjects).values({
       name,
-      code: body.code ?? null,
+      code: str(req.body?.code),
       schoolId: admin.schoolId,
-      phase: normalizePhase(req.body?.phase),
+      phase,
     }).returning();
     res.status(201).json(subject);
   } catch (err) {

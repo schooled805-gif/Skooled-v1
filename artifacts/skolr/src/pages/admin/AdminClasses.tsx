@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useListClasses, useCreateClass, getListClassesQueryKey } from '@workspace/api-client-react';
+import { useListClasses, useCreateClass, getListClassesQueryKey, useListProfiles } from '@workspace/api-client-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhase } from '@/contexts/PhaseContext';
@@ -28,9 +28,29 @@ export default function AdminClasses() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: classes, isLoading } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
+  const { data: profiles } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
+  const teachers = ((profiles ?? []) as any[]).filter((p) => p.role === 'teacher');
+  const phaseTeachers = teachers.filter((t) => !multiPhase || t.phase === activePhase || !t.phase);
   const visibleClasses = (classes ?? []).filter(
     (c) => !multiPhase || (c as any).phase === activePhase || !(c as any).phase,
   );
+
+  const assignTeacher = useMutation({
+    mutationFn: async ({ id, teacher_id }: { id: string; teacher_id: string | null }) => {
+      const res = await fetch(`/api/classes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ teacher_id }),
+      });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as any)?.error ?? 'Failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getListClassesQueryKey() });
+      toast({ title: 'Class teacher updated' });
+    },
+    onError: (err: any) => toast({ title: 'Could not update class teacher', description: err?.message, variant: 'destructive' }),
+  });
   const create = useCreateClass();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', grade_level: '', academic_year: '' });
@@ -153,6 +173,19 @@ export default function AdminClasses() {
                       <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">{cls.grade_level ?? '—'}</Badge>
                       {(cls as any).status === 'disabled' && <Badge className="bg-gray-200 text-gray-600 hover:bg-gray-200">Disabled</Badge>}
                     </div>
+                  </div>
+                  <div className="space-y-1 pt-1 border-t">
+                    <p className="text-xs text-gray-400">Class Teacher</p>
+                    <select
+                      className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm"
+                      value={(cls as any).teacher_id ?? ''}
+                      disabled={assignTeacher.isPending}
+                      onChange={(e) => assignTeacher.mutate({ id: cls.id, teacher_id: e.target.value || null })}
+                      data-testid={`select-class-teacher-${cls.id}`}
+                    >
+                      <option value="">— No class teacher —</option>
+                      {phaseTeachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                    </select>
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-1 border-t">
                     {(cls as any).status === 'disabled' ? (

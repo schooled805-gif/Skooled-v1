@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { db } from "@workspace/db";
-import { profiles } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { profiles, classes, timetableEntries } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import type { Profile } from "@workspace/db";
 
 /**
@@ -36,4 +36,28 @@ export async function requireAdmin(req: Request): Promise<Profile | null> {
   const p = await getRequesterProfile(req);
   if (!p || p.role !== "admin" || !p.schoolId) return null;
   return p;
+}
+
+/**
+ * The set of class ids a teacher is responsible for: classes where they are the
+ * head/class teacher PLUS classes where they teach at least one subject on the
+ * timetable. Used to scope what students/classes a teacher can see — a teacher
+ * must only see students in their own classes, never the whole school.
+ */
+export async function getTeacherClassIds(
+  teacherProfileId: string,
+  schoolId: string,
+): Promise<Set<string>> {
+  const ids = new Set<string>();
+  const head = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.schoolId, schoolId), eq(classes.teacherId, teacherProfileId)));
+  for (const c of head) ids.add(c.id);
+  const tt = await db
+    .select({ classId: timetableEntries.classId })
+    .from(timetableEntries)
+    .where(and(eq(timetableEntries.schoolId, schoolId), eq(timetableEntries.teacherId, teacherProfileId)));
+  for (const t of tt) if (t.classId) ids.add(t.classId);
+  return ids;
 }

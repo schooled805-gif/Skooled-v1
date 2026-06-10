@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { announcements, profiles } from "@workspace/db";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, desc } from "drizzle-orm";
 import { getRequesterSchoolId } from "../lib/scope";
 import {
   ListAnnouncementsQueryParams,
@@ -31,7 +31,8 @@ router.get("/announcements", async (req, res) => {
       created_at: announcements.createdAt,
     }).from(announcements)
       .leftJoin(profiles, eq(announcements.authorId, profiles.userId))
-      .where(eq(announcements.schoolId, schoolId));
+      .where(eq(announcements.schoolId, schoolId))
+      .orderBy(desc(announcements.createdAt));
 
     const now = Date.now();
     // Hide announcements whose expiry date has passed.
