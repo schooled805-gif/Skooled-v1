@@ -18,6 +18,10 @@ import tuckshopRouter from "./tuckshop";
 import feesRouter from "./fees";
 import activitiesRouter from "./activities";
 import dailyMenuRouter from "./dailyMenu";
+import storageRouter from "./storage";
+import lostFoundRouter from "./lostFound";
+import schoolLinksRouter from "./schoolLinks";
+import attendanceRouter from "./attendance";
 
 const router: IRouter = Router();
 
@@ -40,5 +44,9 @@ router.use(tuckshopRouter);
 router.use(feesRouter);
 router.use(activitiesRouter);
 router.use(dailyMenuRouter);
+router.use(storageRouter);
+router.use(lostFoundRouter);
+router.use(schoolLinksRouter);
+router.use(attendanceRouter);
 
 export default router;

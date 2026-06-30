@@ -13,6 +13,7 @@ interface Profile {
   school_id: string;
   avatar_url?: string | null;
   phone?: string | null;
+  must_change_password?: boolean;
 }
 
 export interface School {
@@ -25,6 +26,7 @@ export interface School {
   primaryColor?: string | null;
   secondaryColor?: string | null;
   tuckshopUrl?: string | null;
+  canteenEmail?: string | null;
   phases?: string[] | null;
 }
 
@@ -37,6 +39,7 @@ interface AuthContextType {
   schoolId: string | null;
   school: School | null;
   refreshSchool: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -48,6 +51,7 @@ const AuthContext = createContext<AuthContextType>({
   schoolId: null,
   school: null,
   refreshSchool: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -71,6 +75,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshSchool = async () => {
     if (profile?.school_id) await fetchSchool(profile.school_id);
+  };
+
+  const refreshProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user && session.access_token) {
+      await fetchProfile(session.user, session.access_token);
+    }
   };
 
   const fetchProfile = async (u: User, accessToken: string) => {
@@ -134,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       schoolId: profile?.school_id ?? null,
       school,
       refreshSchool,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

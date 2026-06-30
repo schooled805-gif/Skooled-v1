@@ -3,25 +3,55 @@ import { PortalLayout } from '@/components/layout/PortalLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useListConversations, useListMessages, useSendMessage, getListMessagesQueryKey, getListConversationsQueryKey } from '@workspace/api-client-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  useListConversations, useListMessages, useSendMessage,
+  useListStudents, useListClasses, useListSubjects,
+  getListMessagesQueryKey, getListConversationsQueryKey,
+} from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Send, MessageSquare } from 'lucide-react';
+import { Loader2, Send, MessageSquare, Megaphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RecipientSelector, emptyScope, scopeCount, type RecipientScope } from '@/components/RecipientSelector';
+
+async function apiPost(url: string, token: string, body: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error ?? 'Request failed');
+  }
+  return res.json();
+}
 
 export default function TeacherMessages() {
-  const { user, schoolId } = useAuth();
+  const { user, schoolId, session } = useAuth();
+  const token = session?.access_token ?? '';
   const qc = useQueryClient();
   const { toast } = useToast();
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [newMsg, setNewMsg] = useState('');
+
+  // Broadcast state
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [scope, setScope] = useState<RecipientScope>(emptyScope);
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [sending, setSending] = useState(false);
 
   const { data: conversations, isLoading: loadingConvs } = useListConversations();
   const { data: messages, isLoading: loadingMsgs } = useListMessages(
     { conversation_with: activeConv ?? undefined },
     { query: { enabled: !!activeConv, queryKey: getListMessagesQueryKey({ conversation_with: activeConv ?? undefined }) } }
   );
+  const { data: students } = useListStudents();
+  const { data: classes } = useListClasses();
+  const { data: subjects } = useListSubjects();
   const send = useSendMessage();
 
   const handleSend = () => {
@@ -36,14 +66,36 @@ export default function TeacherMessages() {
     });
   };
 
+  const handleBroadcast = async () => {
+    if (!broadcastBody.trim() || scopeCount(scope) === 0) return;
+    setSending(true);
+    try {
+      const result = await apiPost('/api/messages/broadcast', token, { body: broadcastBody.trim(), ...scope });
+      toast({ title: 'Message sent', description: `Delivered to ${result.sent} parent(s).` });
+      setBroadcastOpen(false);
+      setBroadcastBody('');
+      setScope(emptyScope);
+      qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+    } catch (err: any) {
+      toast({ title: 'Could not send', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const activeConvData = conversations?.find(c => c.other_user_id === activeConv);
 
   return (
     <PortalLayout role="teacher">
       <div className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Messages</h1>
-          <p className="text-gray-500 mt-1">Communicate with parents</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Messages</h1>
+            <p className="text-gray-500 mt-1">Communicate with parents</p>
+          </div>
+          <Button onClick={() => setBroadcastOpen(true)} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-broadcast">
+            <Megaphone className="h-4 w-4 mr-2" /> Message Parents
+          </Button>
         </div>
         <div className="flex gap-4 h-[600px]">
           <Card className="w-72 shrink-0 flex flex-col">
@@ -102,6 +154,34 @@ export default function TeacherMessages() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Message Parents</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Recipients</label>
+              <RecipientSelector
+                students={(students ?? []) as any}
+                classes={(classes ?? []) as any}
+                subjects={(subjects ?? []) as any}
+                value={scope}
+                onChange={setScope}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Message</label>
+              <Textarea value={broadcastBody} onChange={(e) => setBroadcastBody(e.target.value)} rows={4} placeholder="Write your message to parents..." data-testid="input-broadcast-body" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBroadcastOpen(false)}>Cancel</Button>
+            <Button onClick={handleBroadcast} disabled={sending || !broadcastBody.trim() || scopeCount(scope) === 0} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-send-broadcast">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />} Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }

@@ -13,6 +13,8 @@ export const schools = pgTable("schools", {
   primaryColor: text("primary_color"),
   secondaryColor: text("secondary_color"),
   tuckshopUrl: text("tuckshop_url"),
+  // Email address that canteen/tuckshop orders are sent to (admin-configurable).
+  canteenEmail: text("canteen_email"),
   // Selected school phases (nursery | pre_primary | primary | high). Empty/null or
   // a single value means the school is not split into per-phase tabs.
   phases: text("phases").array(),
@@ -34,6 +36,8 @@ export const profiles = pgTable("profiles", {
   // Null for non-teachers and legacy/unsplit schools.
   phase: text("phase"),
   pushToken: text("push_token"),
+  // When true, the user must set a new password on next login (teacher first login).
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
 });
@@ -341,6 +345,53 @@ export const dailyMenus = pgTable("daily_menus", {
   schoolDateUnique: unique("daily_menus_school_date_unique").on(t.schoolId, t.menuDate),
 }));
 
+// ── SCHOOL_LINKS (external links e.g. uniform shop, configured by admin) ───────
+export const schoolLinks = pgTable("school_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull(),
+  label: text("label").notNull(),
+  url: text("url").notNull(),
+  category: text("category").notNull().default("uniform"), // uniform | shop | other
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── LOST_AND_FOUND ────────────────────────────────────────────────────────────
+export const lostFoundItems = pgTable("lost_found_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  category: text("category"), // clothing | electronics | stationery | other
+  photoUrl: text("photo_url"), // object-storage path (/objects/...)
+  status: text("status").notNull().default("open"), // open | claimed | resolved
+  locationFound: text("location_found"),
+  postedByUserId: text("posted_by_user_id"),
+  postedByName: text("posted_by_name"),
+  claimedByUserId: text("claimed_by_user_id"),
+  claimedByName: text("claimed_by_name"),
+  claimedStudentId: uuid("claimed_student_id"),
+  claimNote: text("claim_note"),
+  claimedAt: text("claimed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// ── ATTENDANCE_RECORDS (register marking per class/subject per day) ────────────
+export const attendanceRecords = pgTable("attendance_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull(),
+  studentId: uuid("student_id").notNull(),
+  classId: uuid("class_id"),
+  subjectId: uuid("subject_id"),
+  date: text("date").notNull(), // YYYY-MM-DD
+  status: text("status").notNull().default("present"), // present | absent | late | excused
+  note: text("note"),
+  markedByUserId: text("marked_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -366,3 +417,6 @@ export type ActivityProvider = typeof activityProviders.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type ActivitySignup = typeof activitySignups.$inferSelect;
 export type DailyMenu = typeof dailyMenus.$inferSelect;
+export type SchoolLink = typeof schoolLinks.$inferSelect;
+export type LostFoundItem = typeof lostFoundItems.$inferSelect;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;

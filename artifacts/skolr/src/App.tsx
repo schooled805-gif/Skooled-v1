@@ -14,6 +14,7 @@ import ProfileSetup from "@/pages/public/ProfileSetup";
 import PendingApproval from "@/pages/public/PendingApproval";
 import ResetPassword from "@/pages/public/ResetPassword";
 import SetPassword from "@/pages/public/SetPassword";
+import ForcePasswordChange from "@/pages/public/ForcePasswordChange";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminBranding from "@/pages/admin/AdminBranding";
@@ -32,6 +33,9 @@ import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminFees from "@/pages/admin/AdminFees";
 import AdminSubjects from "@/pages/admin/AdminSubjects";
 import AdminActivities from "@/pages/admin/AdminActivities";
+import AdminSchoolLinks from "@/pages/admin/AdminSchoolLinks";
+import StaffLostFound from "@/pages/staff/StaffLostFound";
+import SchoolLinksView from "@/pages/shared/SchoolLinksView";
 
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import ParentSchedule from "@/pages/parent/ParentSchedule";
@@ -42,6 +46,7 @@ import ParentTuckshop from "@/pages/parent/ParentTuckshop";
 import ParentAccount from "@/pages/parent/ParentAccount";
 import ParentCalendar from "@/pages/parent/ParentCalendar";
 import ParentActivities from "@/pages/parent/ParentActivities";
+import ParentLostFound from "@/pages/parent/ParentLostFound";
 
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
 import TeacherSetup from "@/pages/teacher/TeacherSetup";
@@ -50,6 +55,7 @@ import TeacherMessages from "@/pages/teacher/TeacherMessages";
 import TeacherApprovals from "@/pages/teacher/TeacherApprovals";
 import TeacherAnnouncements from "@/pages/teacher/TeacherAnnouncements";
 import TeacherReports from "@/pages/teacher/TeacherReports";
+import TeacherAttendance from "@/pages/teacher/TeacherAttendance";
 
 import StudentDashboard from "@/pages/student/StudentDashboard";
 import StudentTimetable from "@/pages/student/StudentTimetable";
@@ -84,6 +90,8 @@ const AuthGuard = ({ children, allowedRoles }: { children: React.ReactNode; allo
 
   if (!user || !role) return null;
   if (profile?.status === 'pending' || profile?.status === 'rejected' || profile?.status === 'disabled') return null;
+
+  if (profile?.must_change_password) return <ForcePasswordChange />;
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     return (
@@ -183,6 +191,12 @@ function Router() {
       <Route path="/admin/fees">
         <AuthGuard allowedRoles={['admin']}><AdminFees /></AuthGuard>
       </Route>
+      <Route path="/admin/links">
+        <AuthGuard allowedRoles={['admin']}><AdminSchoolLinks /></AuthGuard>
+      </Route>
+      <Route path="/admin/lost-found">
+        <AuthGuard allowedRoles={['admin']}><StaffLostFound role="admin" /></AuthGuard>
+      </Route>
 
       {/* Parent */}
       <Route path="/parent">
@@ -212,6 +226,12 @@ function Router() {
       <Route path="/parent/account">
         <AuthGuard allowedRoles={['parent']}><ParentAccount /></AuthGuard>
       </Route>
+      <Route path="/parent/lost-found">
+        <AuthGuard allowedRoles={['parent']}><ParentLostFound /></AuthGuard>
+      </Route>
+      <Route path="/parent/shop">
+        <AuthGuard allowedRoles={['parent']}><SchoolLinksView role="parent" /></AuthGuard>
+      </Route>
 
       {/* Teacher */}
       <Route path="/teacher/setup">
@@ -234,6 +254,15 @@ function Router() {
       </Route>
       <Route path="/teacher/announcements">
         <AuthGuard allowedRoles={['teacher']}><TeacherAnnouncements /></AuthGuard>
+      </Route>
+      <Route path="/teacher/attendance">
+        <AuthGuard allowedRoles={['teacher']}><TeacherAttendance /></AuthGuard>
+      </Route>
+      <Route path="/teacher/lost-found">
+        <AuthGuard allowedRoles={['teacher']}><StaffLostFound role="teacher" /></AuthGuard>
+      </Route>
+      <Route path="/teacher/shop">
+        <AuthGuard allowedRoles={['teacher']}><SchoolLinksView role="teacher" /></AuthGuard>
       </Route>
 
       {/* Student */}

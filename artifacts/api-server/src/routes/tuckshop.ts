@@ -7,9 +7,12 @@ import {
   tuckshopTransactions,
   students,
   profiles,
+  classes,
+  schools,
 } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/scope";
+import { sendEmail } from "../lib/email";
 
 const router = Router();
 
@@ -327,6 +330,40 @@ router.post("/tuckshop/orders", async (req, res) => {
       type: "order",
       description: `Order #${order.id.slice(0, 8)}`,
       referenceId: order.id,
+    });
+
+    // Email the canteen the order details (fire-and-forget; no-op if not configured).
+    setImmediate(async () => {
+      try {
+        const [school] = await db.select({ canteenEmail: schools.canteenEmail, name: schools.name })
+          .from(schools).where(eq(schools.id, school_id)).limit(1);
+        if (!school?.canteenEmail) return;
+        const [stu] = await db.select({
+          grade: students.grade,
+          fullName: profiles.fullName,
+          className: classes.name,
+        }).from(students)
+          .leftJoin(profiles, eq(students.profileId, profiles.id))
+          .leftJoin(classes, eq(students.classId, classes.id))
+          .where(eq(students.id, student_id)).limit(1);
+        const lines = (items as Array<{ name?: string; quantity?: number; price?: number }>)
+          .map(i => `  • ${i.quantity ?? 1} × ${i.name ?? "Item"}`).join("\n");
+        const studentName = stu?.fullName ?? "Unknown student";
+        const classInfo = [stu?.grade && `Grade ${stu.grade}`, stu?.className].filter(Boolean).join(", ");
+        const text =
+          `New canteen order #${order.id.slice(0, 8)}\n\n` +
+          `Student: ${studentName}${classInfo ? ` (${classInfo})` : ""}\n` +
+          `Order date: ${order.orderDate}\n\n` +
+          `Items:\n${lines}\n\n` +
+          `Total: R${centsToDisplay(order.totalCents)}\n`;
+        await sendEmail({
+          to: school.canteenEmail,
+          subject: `New canteen order — ${studentName}`,
+          text,
+        });
+      } catch (err) {
+        req.log.error({ err }, "Failed to send canteen order email");
+      }
     });
 
     res.status(201).json({

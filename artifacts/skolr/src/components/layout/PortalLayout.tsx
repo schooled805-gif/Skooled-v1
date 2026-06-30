@@ -22,6 +22,9 @@ import {
   BookMarked,
   Menu,
   UtensilsCrossed,
+  PackageSearch,
+  ClipboardCheck,
+  Link2,
 } from 'lucide-react';
 import { isMealMenuSchool } from '@/lib/phases';
 import { Button } from '@/components/ui/button';
@@ -58,6 +61,8 @@ const getRoleConfig = (role: string) => {
           { name: 'Activities', path: '/parent/activities', icon: Trophy },
           { name: 'Approvals', path: '/parent/approvals', icon: CheckSquare },
           { name: 'Messages', path: '/parent/messages', icon: MessageSquare },
+          { name: 'Lost & Found', path: '/parent/lost-found', icon: PackageSearch },
+          { name: 'Shop & Links', path: '/parent/shop', icon: Link2 },
           { name: 'Reports', path: '/parent/reports', icon: FileText },
         ]
       };
@@ -68,8 +73,11 @@ const getRoleConfig = (role: string) => {
         links: [
           { name: 'Dashboard', path: '/teacher', icon: Home },
           { name: 'My Classes', path: '/teacher/classes', icon: Users },
+          { name: 'Attendance', path: '/teacher/attendance', icon: ClipboardCheck },
           { name: 'Messages', path: '/teacher/messages', icon: MessageSquare },
           { name: 'Approvals', path: '/teacher/approvals', icon: CheckSquare },
+          { name: 'Lost & Found', path: '/teacher/lost-found', icon: PackageSearch },
+          { name: 'Shop & Links', path: '/teacher/shop', icon: Link2 },
           { name: 'Reports', path: '/teacher/reports', icon: FileText },
           { name: 'Announcements', path: '/teacher/announcements', icon: Megaphone },
         ]
@@ -103,6 +111,8 @@ const getRoleConfig = (role: string) => {
           { name: 'Events',        path: '/admin/events',       icon: Megaphone },
           { name: 'Tuckshop',      path: '/admin/tuckshop',     icon: ShoppingBag },
           { name: 'Fees',          path: '/admin/fees',         icon: Wallet },
+          { name: 'Lost & Found',  path: '/admin/lost-found',   icon: PackageSearch },
+          { name: 'School Links',  path: '/admin/links',        icon: Link2 },
           { name: 'Approvals',     path: '/admin/approvals',    icon: CheckSquare },
           { name: 'Reports',       path: '/admin/reports',      icon: FileText },
           { name: 'Announcements', path: '/admin/announcements',icon: Megaphone },

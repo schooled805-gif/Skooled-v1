@@ -30,6 +30,7 @@ function mapProfile(p: Profile) {
     avatar_url: p.avatarUrl ?? null,
     school_id: p.schoolId ?? null,
     phase: p.phase ?? null,
+    must_change_password: p.mustChangePassword ?? false,
     created_at: p.createdAt?.toISOString() ?? null,
     updated_at: p.updatedAt?.toISOString() ?? null,
   };
@@ -276,6 +277,28 @@ router.patch("/profiles/:id", async (req, res) => {
       updatedAt: new Date(),
     }).where(eq(profiles.id, id)).returning();
     if (!profile) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(mapProfile(profile));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/profiles/me/password-changed — called by the web app after a user
+ * (a freshly-invited teacher) has set a new password via Supabase, to clear the
+ * forced-change flag so they are no longer prompted on subsequent logins.
+ */
+router.post("/profiles/me/password-changed", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"] as string;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [profile] = await db
+      .update(profiles)
+      .set({ mustChangePassword: false, updatedAt: new Date() })
+      .where(eq(profiles.userId, userId))
+      .returning();
+    if (!profile) { res.status(404).json({ error: "Profile not found" }); return; }
     res.json(mapProfile(profile));
   } catch (err) {
     req.log.error(err);

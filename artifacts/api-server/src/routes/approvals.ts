@@ -1,8 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { approvals, events, students, profiles } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
-import { getRequesterSchoolId } from "../lib/scope";
+import { and, eq, isNotNull, inArray } from "drizzle-orm";
+import {
+  getRequesterSchoolId,
+  getRequesterProfile,
+  resolveStudentIds,
+  getParentLinksForStudents,
+  getTeacherClassIds,
+} from "../lib/scope";
 import {
   ListApprovalsQueryParams,
   CreateApprovalBody,
@@ -94,6 +100,93 @@ router.post("/approvals", async (req, res) => {
     });
 
     res.status(201).json({ ...approval, event_title: null, student_name: null });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/approvals/bulk — a teacher/admin creates approval requests for many
+ * students at once, selected by any mix of individual students, classes, grade
+ * levels, or subjects. One approval row is created per (student, linked parent)
+ * pair so each parent responds for their own child.
+ */
+router.post("/approvals/bulk", async (req, res) => {
+  try {
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    if (requester.role !== "teacher" && requester.role !== "admin") {
+      res.status(403).json({ error: "Only staff can create approval requests" }); return;
+    }
+    const { event_id, student_ids, class_ids, grade_levels, subject_ids } = req.body ?? {};
+    if (!event_id) { res.status(400).json({ error: "event_id is required" }); return; }
+
+    // Confirm the event belongs to this school.
+    const [event] = await db.select({ id: events.id, title: events.title })
+      .from(events)
+      .where(and(eq(events.id, event_id), eq(events.schoolId, requester.schoolId)))
+      .limit(1);
+    if (!event) { res.status(404).json({ error: "Event not found" }); return; }
+
+    // Teachers may only target students in their own classes; admins the school.
+    const allowedClassIds = requester.role === "teacher"
+      ? await getTeacherClassIds(requester.id, requester.schoolId)
+      : undefined;
+
+    const studentIdSet = await resolveStudentIds(requester.schoolId, {
+      studentIds: student_ids,
+      classIds: class_ids,
+      gradeLevels: grade_levels,
+      subjectIds: subject_ids,
+    }, allowedClassIds);
+    if (studentIdSet.size === 0) {
+      res.status(400).json({ error: "No students matched the selected recipients" }); return;
+    }
+
+    const links = await getParentLinksForStudents(requester.schoolId, Array.from(studentIdSet));
+    if (links.length === 0) {
+      res.status(400).json({ error: "None of the selected students have a linked parent" }); return;
+    }
+
+    // Dedupe (student, parent) pairs to avoid duplicate approval rows.
+    const seen = new Set<string>();
+    const values = links.filter((l) => {
+      const key = `${l.studentId}:${l.parentUserId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((l) => ({
+      eventId: event_id as string,
+      studentId: l.studentId,
+      parentUserId: l.parentUserId,
+      status: "pending" as const,
+      schoolId: requester.schoolId!,
+    }));
+
+    await db.insert(approvals).values(values);
+
+    // Push notify each distinct parent (fire-and-forget).
+    setImmediate(async () => {
+      try {
+        const parentIds = Array.from(new Set(values.map((v) => v.parentUserId)));
+        const recips = await db.select({ pushToken: profiles.pushToken })
+          .from(profiles)
+          .where(and(inArray(profiles.userId, parentIds), isNotNull(profiles.pushToken)));
+        const tokens = recips.map((r) => r.pushToken!).filter(Boolean);
+        if (tokens.length) {
+          await sendPushNotifications(tokens, {
+            title: "✅ Approval Required",
+            body: `Your approval is needed for "${event.title}"`,
+            data: { type: "approval", event_id: event_id as string },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    });
+
+    res.status(201).json({ created: values.length, students_matched: studentIdSet.size });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useListApprovals, useListAnnouncements, useListParentStudentLinks } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar, X, Wallet, ShoppingBag, Trophy } from 'lucide-react';
+import { Loader2, CheckSquare, Megaphone, ArrowRight, AlertCircle, GraduationCap, BookOpen, FileText, MessageSquare, Calendar, X, Wallet, ShoppingBag, Trophy, Paperclip } from 'lucide-react';
+import { openProtectedFile } from '@/lib/viewFile';
 
 interface EnrichedLink {
   id: string;
@@ -268,6 +269,15 @@ export default function ParentDashboard() {
               </Badge>
             )}
             <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedAnnouncement?.body}</p>
+            {selectedAnnouncement?.attachment_url && (
+              <button
+                type="button"
+                onClick={() => openProtectedFile(selectedAnnouncement.attachment_url)}
+                className="inline-flex items-center gap-1.5 text-sm text-purple-600 hover:underline"
+              >
+                <Paperclip className="h-3.5 w-3.5" /> View attachment
+              </button>
+            )}
             {selectedAnnouncement?.author_name && (
               <p className="text-xs text-gray-400 pt-2 border-t">Posted by {selectedAnnouncement.author_name}</p>
             )}

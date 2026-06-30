@@ -53,6 +53,10 @@ const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> 
   // inside the handler via provider signature/hash.
   { method: "POST", test: p => p === "/fees/webhook/paystack" },
   { method: "POST", test: p => p === "/fees/webhook/ozow" },
+  // Object serving — files are referenced by obscure object IDs in <img>/<a>
+  // tags that cannot send bearer headers. Upload (request-url) stays protected.
+  { method: "GET",  test: p => p.startsWith("/storage/objects/") },
+  { method: "GET",  test: p => p.startsWith("/storage/public-objects/") },
 ];
 
 app.use("/api", (req, res, next) => {

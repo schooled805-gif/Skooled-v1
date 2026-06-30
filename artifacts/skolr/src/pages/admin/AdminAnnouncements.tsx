@@ -10,8 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { useListAnnouncements, useCreateAnnouncement, getListAnnouncementsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Plus, Megaphone } from 'lucide-react';
+import { Loader2, Plus, Megaphone, Paperclip, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { uploadFile } from '@/lib/uploadFile';
+import { openProtectedFile } from '@/lib/viewFile';
 
 const priorityColor = (p: string | null) => ({ high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-gray-100 text-gray-600' })[p ?? ''] ?? 'bg-gray-100 text-gray-600';
 
@@ -23,19 +25,36 @@ export default function AdminAnnouncements() {
   const create = useCreateAnnouncement();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', body: '', audience_type: 'all', priority: 'medium', expires_at: '' });
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!schoolId) return;
     const { expires_at, ...rest } = form;
     // Date input gives a day; treat it as "visible through end of that day"
     // (the server hides announcements once expires_at is in the past).
     const expiresAtIso = expires_at ? new Date(`${expires_at}T23:59:59`).toISOString() : undefined;
-    create.mutate({ data: { ...rest, school_id: schoolId, expires_at: expiresAtIso } }, {
+
+    let attachmentUrl: string | undefined;
+    if (attachment) {
+      setUploading(true);
+      try {
+        attachmentUrl = (await uploadFile(attachment)).url;
+      } catch {
+        setUploading(false);
+        toast({ title: 'Attachment upload failed', variant: 'destructive' });
+        return;
+      }
+      setUploading(false);
+    }
+
+    create.mutate({ data: { ...rest, school_id: schoolId, expires_at: expiresAtIso, attachment_url: attachmentUrl } }, {
       onSuccess: () => {
         toast({ title: 'Announcement published' });
         qc.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() });
         setOpen(false);
         setForm({ title: '', body: '', audience_type: 'all', priority: 'medium', expires_at: '' });
+        setAttachment(null);
       },
       onError: () => toast({ title: 'Error', variant: 'destructive' }),
     });
@@ -75,6 +94,15 @@ export default function AdminAnnouncements() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600">{a.body}</p>
+                  {a.attachment_url && (
+                    <button
+                      type="button"
+                      onClick={() => openProtectedFile(a.attachment_url!)}
+                      className="mt-2 inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                    >
+                      <Paperclip className="h-3.5 w-3.5" /> View attachment
+                    </button>
+                  )}
                   <div className="flex items-center gap-3 mt-2">
                     {a.author_name && <p className="text-xs text-gray-400">Posted by {a.author_name}</p>}
                     {a.expires_at && <p className="text-xs text-amber-600">Expires {new Date(a.expires_at).toLocaleDateString()}</p>}
@@ -115,11 +143,23 @@ export default function AdminAnnouncements() {
               <Label>Expiry date <span className="text-gray-400 font-normal">(optional — hidden after this date)</span></Label>
               <Input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} data-testid="input-expires-at" />
             </div>
+            <div className="space-y-1">
+              <Label>Attachment <span className="text-gray-400 font-normal">(optional — PDF, image, document)</span></Label>
+              {attachment ? (
+                <div className="flex items-center gap-2 text-sm border rounded-md px-3 py-2 bg-gray-50">
+                  <Paperclip className="h-4 w-4 text-gray-500 shrink-0" />
+                  <span className="truncate flex-1">{attachment.name}</span>
+                  <button type="button" onClick={() => setAttachment(null)} className="text-gray-400 hover:text-red-500"><X className="h-4 w-4" /></button>
+                </div>
+              ) : (
+                <Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" onChange={e => setAttachment(e.target.files?.[0] ?? null)} data-testid="input-attachment" />
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={create.isPending} className="bg-blue-600 hover:bg-blue-700" data-testid="button-publish-announcement">
-              {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publish'}
+            <Button onClick={handleCreate} disabled={create.isPending || uploading} className="bg-blue-600 hover:bg-blue-700" data-testid="button-publish-announcement">
+              {create.isPending || uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publish'}
             </Button>
           </DialogFooter>
         </DialogContent>

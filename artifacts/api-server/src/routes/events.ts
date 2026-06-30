@@ -20,7 +20,7 @@ router.get("/events", async (req, res) => {
     if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
 
     let rows = await db.select().from(events).where(eq(events.schoolId, schoolId));
-    if (query.audience) rows = rows.filter(e => e.audience === query.audience || e.audience === "school");
+    if (query.audience) rows = rows.filter(e => e.audience === query.audience || e.audience === "school" || e.audience === "all");
     if (query.upcoming) rows = rows.filter(e => e.startDatetime && new Date(e.startDatetime) >= new Date());
     res.json(rows);
   } catch (err) {

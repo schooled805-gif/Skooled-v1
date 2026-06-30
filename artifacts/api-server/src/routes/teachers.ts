@@ -71,6 +71,9 @@ router.post("/teachers/invite", async (req, res) => {
       phone: phone?.trim() || null,
       schoolId: school_id || null,
       phase: normalizedPhase,
+      // Teachers are invited with a temporary password and must set their own on
+      // first login (F7). The web app gates on this flag and forces a change.
+      mustChangePassword: true,
     }).returning();
 
     res.status(201).json({

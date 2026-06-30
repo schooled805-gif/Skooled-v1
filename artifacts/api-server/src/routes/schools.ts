@@ -74,7 +74,7 @@ router.patch("/schools/:id", async (req, res) => {
       return;
     }
 
-    const { name, address, phone, email, logo_url, primary_color, secondary_color, tuckshop_url, phases } = req.body;
+    const { name, address, phone, email, logo_url, primary_color, secondary_color, tuckshop_url, canteen_email, phases } = req.body;
 
     const [updated] = await db
       .update(schools)
@@ -87,6 +87,7 @@ router.patch("/schools/:id", async (req, res) => {
         ...(primary_color !== undefined && { primaryColor: primary_color }),
         ...(secondary_color !== undefined && { secondaryColor: secondary_color }),
         ...(tuckshop_url !== undefined && { tuckshopUrl: tuckshop_url }),
+        ...(canteen_email !== undefined && { canteenEmail: canteen_email }),
         ...(phases !== undefined && { phases: normalizePhases(phases) }),
       })
       .where(eq(schools.id, req.params.id))

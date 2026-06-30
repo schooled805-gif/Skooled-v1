@@ -3,6 +3,7 @@
 - [Deployment architecture](deployment-architecture.md) — Vercel uses Supabase Postgres + esbuild bundle; local dev uses Replit DB; never tsc the monorepo.
 - [Auth: invite-only teachers & signup dup-email](auth-invite-only-and-signup.md) — teachers are admin-invite-only (enforce server-side); signup must preflight email-exists.
 - [Vercel import-time crash](deployment-architecture.md) — no module on the Vercel path may throw at load; it kills frontend+API. Defer to request time.
+- [Multi-select fan-out scoping](multiselect-fanout-scoping.md) — teacher messaging/approvals/attendance must enforce class ownership server-side; UI multi-select is not a boundary.
 - [Supabase prod DDL access](supabase-prod-ddl-access.md) — prod=Supabase; apply migration SQL manually; SUPABASE_DB_URL is corrupted, use split-URL host+user + SUPABASE_DB_PASSWORD on :5432.
 - [Multi-tenant file auth](multi-tenant-file-auth.md) — bind uploaded files to school in the path at upload time; never authorize downloads via mutable client-created rows.
 - [Fee/payment webhook integrity](fees-payment-webhooks.md) — credit only on verified webhook (Paystack HMAC over rawBody, Ozow SHA512); claim+ledger+atomic balance in one tx.

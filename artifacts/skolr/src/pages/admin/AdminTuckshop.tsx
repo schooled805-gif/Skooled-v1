@@ -84,10 +84,12 @@ export default function AdminTuckshop() {
   const [weekLabel, setWeekLabel] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [tuckshopUrlInput, setTuckshopUrlInput] = useState("");
+  const [canteenEmailInput, setCanteenEmailInput] = useState("");
   const [urlSaving, setUrlSaving] = useState(false);
 
   useEffect(() => {
     if (school?.tuckshopUrl) setTuckshopUrlInput(school.tuckshopUrl);
+    if (school?.canteenEmail) setCanteenEmailInput(school.canteenEmail);
   }, [school]);
 
   const { data: menus = [] } = useQuery<Menu[]>({
@@ -158,7 +160,10 @@ export default function AdminTuckshop() {
     try {
       await apiFetch(`/api/schools/${schoolId}`, session.access_token, {
         method: "PATCH",
-        body: { tuckshop_url: tuckshopUrlInput.trim() || null },
+        body: {
+          tuckshop_url: tuckshopUrlInput.trim() || null,
+          canteen_email: canteenEmailInput.trim() || null,
+        },
       });
       qc.invalidateQueries({ queryKey: ["school", schoolId] });
     } finally {
@@ -266,6 +271,19 @@ export default function AdminTuckshop() {
                       </div>
                     </div>
                   )}
+                  <div className="pt-2 border-t">
+                    <Label htmlFor="canteen-email">Canteen notification email</Label>
+                    <p className="text-xs text-gray-500 mb-1.5">
+                      New canteen orders are emailed here with the student's name, grade, class and items. Leave blank to disable.
+                    </p>
+                    <Input
+                      id="canteen-email"
+                      type="email"
+                      placeholder="canteen@yourschool.co.za"
+                      value={canteenEmailInput}
+                      onChange={e => setCanteenEmailInput(e.target.value)}
+                    />
+                  </div>
                   <Button onClick={saveTuckshopUrl} disabled={urlSaving} className="bg-blue-600 hover:bg-blue-700">
                     {urlSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Save Settings

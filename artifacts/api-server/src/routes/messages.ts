@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { messages, profiles } from "@workspace/db";
-import { eq, or, and, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import {
   ListMessagesQueryParams,
   SendMessageBody,
   MarkMessageReadParams,
 } from "@workspace/api-zod";
 import { sendPushNotifications } from "../lib/pushNotifications";
+import { getRequesterProfile, resolveStudentIds, getParentLinksForStudents, getTeacherClassIds } from "../lib/scope";
 
 const router = Router();
 
@@ -92,6 +93,85 @@ router.post("/messages", async (req, res) => {
     });
 
     res.status(201).json({ ...msg, sender_name: null });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/messages/broadcast — a teacher (or admin) sends one message to the
+ * parents of many students at once, selected by any combination of individual
+ * students, classes, grade levels, or subjects. One message row is created per
+ * recipient parent (deduplicated). Reuses the messages table so the parent sees
+ * it in their normal inbox.
+ */
+router.post("/messages/broadcast", async (req, res) => {
+  try {
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    if (requester.role !== "teacher" && requester.role !== "admin") {
+      res.status(403).json({ error: "Only staff can broadcast messages" }); return;
+    }
+    const { body, student_ids, class_ids, grade_levels, subject_ids } = req.body ?? {};
+    if (!body?.trim()) { res.status(400).json({ error: "body is required" }); return; }
+
+    // Teachers may only target students in their own classes; admins may target
+    // the whole school.
+    const allowedClassIds = requester.role === "teacher"
+      ? await getTeacherClassIds(requester.id, requester.schoolId)
+      : undefined;
+
+    const studentIdSet = await resolveStudentIds(requester.schoolId, {
+      studentIds: student_ids,
+      classIds: class_ids,
+      gradeLevels: grade_levels,
+      subjectIds: subject_ids,
+    }, allowedClassIds);
+    if (studentIdSet.size === 0) {
+      res.status(400).json({ error: "No students matched the selected recipients" }); return;
+    }
+
+    const links = await getParentLinksForStudents(requester.schoolId, Array.from(studentIdSet));
+    // Dedupe parents — a parent linked to several targeted students gets one msg.
+    const parentToStudent = new Map<string, string>();
+    for (const l of links) if (!parentToStudent.has(l.parentUserId)) parentToStudent.set(l.parentUserId, l.studentId);
+
+    if (parentToStudent.size === 0) {
+      res.status(400).json({ error: "None of the selected students have a linked parent" }); return;
+    }
+
+    const values = Array.from(parentToStudent.entries()).map(([parentUserId, studentId]) => ({
+      senderId: requester.userId,
+      recipientId: parentUserId,
+      body: body.trim(),
+      studentId,
+      schoolId: requester.schoolId!,
+    }));
+    await db.insert(messages).values(values);
+
+    // Push notify recipients with a token (fire-and-forget).
+    setImmediate(async () => {
+      try {
+        const recipientIds = Array.from(parentToStudent.keys());
+        const recips = await db.select({ pushToken: profiles.pushToken })
+          .from(profiles)
+          .where(and(inArray(profiles.userId, recipientIds), isNotNull(profiles.pushToken)));
+        const tokens = recips.map((r) => r.pushToken!).filter(Boolean);
+        if (tokens.length) {
+          const preview = body.trim().length > 80 ? body.trim().slice(0, 77) + "…" : body.trim();
+          await sendPushNotifications(tokens, {
+            title: `💬 Message from ${requester.fullName}`,
+            body: preview,
+            data: { type: "message", conversation_with: requester.userId },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    });
+
+    res.status(201).json({ sent: values.length, students_matched: studentIdSet.size });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

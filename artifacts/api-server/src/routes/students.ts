@@ -151,10 +151,14 @@ router.post("/students/full-create", async (req, res) => {
       res.status(400).json({ error: "Class assignment is required. A student cannot be enrolled without a class." });
       return;
     }
-    if (!full_name?.trim() || !email?.trim() || !grade?.trim() || !school_id) {
-      res.status(400).json({ error: "full_name, email, grade, and school_id are required" });
+    // Email is OPTIONAL for students (F7): younger pupils may not have one. When
+    // omitted we still create the profile (a unique placeholder email satisfies
+    // the not-null/unique constraint) but skip the Supabase invite below.
+    if (!full_name?.trim() || !grade?.trim() || !school_id) {
+      res.status(400).json({ error: "full_name, grade, and school_id are required" });
       return;
     }
+    const hasEmail = !!email?.trim();
 
     const existingCount = await db.select({ id: students.id }).from(students).where(eq(students.schoolId, school_id));
     const seq = String(existingCount.length + 1).padStart(4, "0");
@@ -170,11 +174,14 @@ router.post("/students/full-create", async (req, res) => {
     const student_number = `${prefix}-${seq}`;
 
     const placeholderUserId = crypto.randomUUID();
+    const profileEmail = hasEmail
+      ? email.trim().toLowerCase()
+      : `student-${placeholderUserId}@students.local`;
     const [profile] = await db.insert(profiles).values({
       userId: placeholderUserId,
       role: "student",
       fullName: full_name.trim(),
-      email: email.trim().toLowerCase(),
+      email: profileEmail,
       schoolId: school_id,
     }).returning();
 
@@ -190,7 +197,7 @@ router.post("/students/full-create", async (req, res) => {
     let invited = false;
     const supabaseUrl = process.env["SUPABASE_URL"];
     const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
-    if (supabaseUrl && serviceKey) {
+    if (hasEmail && supabaseUrl && serviceKey) {
       try {
         const inviteRes = await fetch(`${supabaseUrl}/auth/v1/invite`, {
           method: "POST",
