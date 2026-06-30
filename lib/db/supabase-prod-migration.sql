@@ -139,3 +139,62 @@ CREATE TABLE IF NOT EXISTS fee_payments (
   created_at         timestamp DEFAULT now(),
   updated_at         timestamp
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- BATCH F1–F10 (canteen email, forced password change, lost & found, links, attendance)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 11. schools.canteen_email — admin-configurable destination for tuckshop order emails
+ALTER TABLE schools
+  ADD COLUMN IF NOT EXISTS canteen_email text;
+
+-- 12. profiles.must_change_password — force a password change on next login
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
+
+-- 13. school_links — external links (e.g. uniform shop), admin CRUD
+CREATE TABLE IF NOT EXISTS school_links (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id  uuid NOT NULL,
+  label      text NOT NULL,
+  url        text NOT NULL,
+  category   text NOT NULL DEFAULT 'uniform',  -- uniform | shop | other
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamp DEFAULT now()
+);
+
+-- 14. lost_found_items — lost & found board
+CREATE TABLE IF NOT EXISTS lost_found_items (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id          uuid NOT NULL,
+  title              text NOT NULL,
+  description        text,
+  category           text,                      -- clothing | electronics | stationery | other
+  photo_url          text,
+  status             text NOT NULL DEFAULT 'open', -- open | claimed | resolved
+  location_found     text,
+  posted_by_user_id  text,
+  posted_by_name     text,
+  claimed_by_user_id text,
+  claimed_by_name    text,
+  claimed_student_id uuid,
+  claim_note         text,
+  claimed_at         text,
+  created_at         timestamp DEFAULT now(),
+  updated_at         timestamp
+);
+
+-- 15. attendance_records — register marking per class/subject per day
+CREATE TABLE IF NOT EXISTS attendance_records (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id         uuid NOT NULL,
+  student_id        uuid NOT NULL,
+  class_id          uuid,
+  subject_id        uuid,
+  date              text NOT NULL,              -- YYYY-MM-DD
+  status            text NOT NULL DEFAULT 'present', -- present | absent | late | excused
+  note              text,
+  marked_by_user_id text,
+  created_at        timestamp DEFAULT now(),
+  updated_at        timestamp
+);
