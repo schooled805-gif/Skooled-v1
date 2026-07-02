@@ -11,3 +11,4 @@
 - [Admin authz & disabled gate](admin-authz-and-disabled-gate.md) — privileged mutations must use requireAdmin() (school scope alone allows same-tenant escalation); disabled users blocked in JWT middleware except /profiles/me.
 - [School phases](school-phases.md) — per-phase tabs only when >1 phase; filter keeps null-phase legacy rows visible under all tabs; server coerces invalid phase to null.
 - [Orphaned profiles from partial insert](orphaned-profile-partial-insert.md) — profile+student create must be one db.transaction; unique-email retry surfaces as 500.
+- [Parent-student link authz](parent-link-authz.md) — links are the trust root for fees access; create/list/delete must derive identity server-side, never client-forgeable.

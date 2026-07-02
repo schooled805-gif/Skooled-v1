@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { stashPendingChildLinks } from '@/lib/pendingLinks';
 import {
   BookOpen, Loader2, Users, Shield, Search, Check, X,
   ChevronRight, ChevronLeft, Building2, GraduationCap,
@@ -125,14 +126,11 @@ export default function ProfileSetup() {
       });
       if (!profileRes.ok) throw new Error('Failed to create profile');
 
+      // Stash selected children; AuthContext links them (authenticated) after
+      // the full reload below, so the API can derive the parent identity from
+      // the verified session rather than trusting client-supplied ids.
       if (role === 'parent' && selectedChildren.length > 0) {
-        await Promise.all(selectedChildren.map(child =>
-          fetch('/api/parent-student-links', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ parent_user_id: user.id, student_id: child.id, school_id: schoolId }),
-          })
-        ));
+        stashPendingChildLinks(user.id, selectedChildren.map(child => child.id));
       }
 
       toast({ title: 'Profile complete!', description: 'Taking you to your portal…' });

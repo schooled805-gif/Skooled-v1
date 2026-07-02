@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
+import { readPendingChildLinks, clearPendingChildLinks } from '@/lib/pendingLinks';
 
 interface Profile {
   id: string;
@@ -100,6 +101,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
     }
   };
+
+  // Link any children a parent selected during signup/profile-setup, once they
+  // are authenticated. Done here (not at signup) so the API derives the parent
+  // identity from the verified token instead of trusting client-supplied ids.
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!user?.id || !token || profile?.role !== 'parent') return;
+    const ids = readPendingChildLinks(user.id);
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      let allOk = true;
+      for (const studentId of ids) {
+        try {
+          const res = await fetch('/api/parent-student-links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ student_id: studentId }),
+          });
+          if (!res.ok) allOk = false;
+        } catch {
+          allOk = false;
+        }
+      }
+      if (!cancelled && allOk) clearPendingChildLinks(user.id);
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.id, session?.access_token, profile?.role]);
 
   // Wire the API client's auth getter so every generated hook sends the Bearer token.
   useEffect(() => {

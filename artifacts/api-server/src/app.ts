@@ -48,7 +48,6 @@ const PUBLIC_ROUTES: Array<{ method: string; test: (path: string) => boolean }> 
   { method: "GET",  test: p => p === "/profiles/email-exists" },
   { method: "POST", test: p => p === "/profiles" },
   { method: "POST", test: p => p === "/schools" },
-  { method: "POST", test: p => p === "/parent-student-links" },
   // Payment provider webhooks — no bearer token; authenticity is verified
   // inside the handler via provider signature/hash.
   { method: "POST", test: p => p === "/fees/webhook/paystack" },

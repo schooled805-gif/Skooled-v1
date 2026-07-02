@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { stashPendingChildLinks } from '@/lib/pendingLinks';
 import {
   BookOpen,
   Loader2,
@@ -267,18 +268,12 @@ export default function Signup() {
       }
 
       // ── Step 4: Link children (parent only) ───────────────────────────────
+      // Linking is authenticated (the API derives the parent identity from the
+      // verified token), which isn't available yet when email confirmation is
+      // required. Stash the selected children; AuthContext links them on the
+      // parent's first authenticated load.
       if (role === 'parent' && selectedChildren.length > 0) {
-        await Promise.all(selectedChildren.map(child =>
-          fetch('/api/parent-student-links', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({
-              parent_user_id: userId,
-              student_id: child.id,
-              school_id: schoolId,
-            }),
-          })
-        ));
+        stashPendingChildLinks(userId, selectedChildren.map(c => c.id));
       }
 
       toast({
