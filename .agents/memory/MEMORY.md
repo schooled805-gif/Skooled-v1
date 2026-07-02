@@ -10,3 +10,4 @@
 - [API endpoint workflow](api-endpoint-workflow.md) — edit openapi.yaml → run api-spec codegen → restart api-server (esbuild one-shot); messages recipient_id is auth user_id, not profiles.id.
 - [Admin authz & disabled gate](admin-authz-and-disabled-gate.md) — privileged mutations must use requireAdmin() (school scope alone allows same-tenant escalation); disabled users blocked in JWT middleware except /profiles/me.
 - [School phases](school-phases.md) — per-phase tabs only when >1 phase; filter keeps null-phase legacy rows visible under all tabs; server coerces invalid phase to null.
+- [Orphaned profiles from partial insert](orphaned-profile-partial-insert.md) — profile+student create must be one db.transaction; unique-email retry surfaces as 500.
