@@ -177,22 +177,31 @@ router.post("/students/full-create", async (req, res) => {
     const profileEmail = hasEmail
       ? email.trim().toLowerCase()
       : `student-${placeholderUserId}@students.local`;
-    const [profile] = await db.insert(profiles).values({
-      userId: placeholderUserId,
-      role: "student",
-      fullName: full_name.trim(),
-      email: profileEmail,
-      schoolId: school_id,
-    }).returning();
 
-    const [student] = await db.insert(students).values({
-      profileId: profile.id,
-      classId: class_id,
-      schoolId: school_id,
-      grade: grade.trim(),
-      dateOfBirth: date_of_birth || null,
-      studentNumber: student_number,
-    }).returning();
+    // Create the profile + student atomically. If the student insert fails
+    // (e.g. schema drift, constraint), the profile insert is rolled back too —
+    // otherwise a partial failure leaves an orphaned profile whose email then
+    // blocks every retry with a "duplicate email" error surfaced as a 500.
+    const { profile, student } = await db.transaction(async (tx) => {
+      const [profile] = await tx.insert(profiles).values({
+        userId: placeholderUserId,
+        role: "student",
+        fullName: full_name.trim(),
+        email: profileEmail,
+        schoolId: school_id,
+      }).returning();
+
+      const [student] = await tx.insert(students).values({
+        profileId: profile.id,
+        classId: class_id,
+        schoolId: school_id,
+        grade: grade.trim(),
+        dateOfBirth: date_of_birth || null,
+        studentNumber: student_number,
+      }).returning();
+
+      return { profile, student };
+    });
 
     let invited = false;
     const supabaseUrl = process.env["SUPABASE_URL"];
