@@ -35,6 +35,7 @@ export default function AdminClasses() {
     (c) => !multiPhase || (c as any).phase === activePhase || !(c as any).phase,
   );
 
+  const [savingTeacherIds, setSavingTeacherIds] = useState<Set<string>>(new Set());
   const assignTeacher = useMutation({
     mutationFn: async ({ id, teacher_id }: { id: string; teacher_id: string | null }) => {
       const res = await fetch(`/api/classes/${id}`, {
@@ -45,11 +46,17 @@ export default function AdminClasses() {
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as any)?.error ?? 'Failed');
       return res.json();
     },
+    onMutate: ({ id }) => {
+      setSavingTeacherIds((prev) => { const next = new Set(prev); next.add(id); return next; });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: getListClassesQueryKey() });
       toast({ title: 'Class teacher updated' });
     },
     onError: (err: any) => toast({ title: 'Could not update class teacher', description: err?.message, variant: 'destructive' }),
+    onSettled: (_data, _err, { id }) => {
+      setSavingTeacherIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    },
   });
   const create = useCreateClass();
   const [open, setOpen] = useState(false);
@@ -179,7 +186,7 @@ export default function AdminClasses() {
                     <select
                       className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm"
                       value={(cls as any).teacher_id ?? ''}
-                      disabled={assignTeacher.isPending}
+                      disabled={savingTeacherIds.has(cls.id)}
                       onChange={(e) => assignTeacher.mutate({ id: cls.id, teacher_id: e.target.value || null })}
                       data-testid={`select-class-teacher-${cls.id}`}
                     >
