@@ -9,5 +9,6 @@
 export interface ClassUpdate {
   name?: string;
   grade_level?: string;
-  teacher_id?: string;
+  /** @nullable */
+  teacher_id?: string | null;
 }

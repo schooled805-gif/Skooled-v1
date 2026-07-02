@@ -10,6 +10,7 @@ export interface ClassInput {
   name: string;
   school_id: string;
   grade_level: string;
-  teacher_id?: string;
+  /** @nullable */
+  teacher_id?: string | null;
   academic_year?: string;
 }

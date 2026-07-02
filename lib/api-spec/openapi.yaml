@@ -1061,7 +1061,7 @@ components:
         name:          { type: string }
         school_id:     { type: string }
         grade_level:   { type: string }
-        teacher_id:    { type: string }
+        teacher_id:    { type: ["string", "null"] }
         academic_year: { type: string }
 
     ClassUpdate:
@@ -1069,7 +1069,7 @@ components:
       properties:
         name:          { type: string }
         grade_level:   { type: string }
-        teacher_id:    { type: string }
+        teacher_id:    { type: ["string", "null"] }
 
     Subject:
       type: object

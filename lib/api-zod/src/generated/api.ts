@@ -293,7 +293,7 @@ export const CreateClassBody = zod.object({
   "name": zod.string(),
   "school_id": zod.string(),
   "grade_level": zod.string(),
-  "teacher_id": zod.string().optional(),
+  "teacher_id": zod.string().nullish(),
   "academic_year": zod.string().optional()
 })
 
@@ -320,7 +320,7 @@ export const UpdateClassParams = zod.object({
 export const UpdateClassBody = zod.object({
   "name": zod.string().optional(),
   "grade_level": zod.string().optional(),
-  "teacher_id": zod.string().optional()
+  "teacher_id": zod.string().nullish()
 })
 
 export const UpdateClassResponse = zod.object({
