@@ -6,6 +6,8 @@ import { getRequesterProfile, getTeacherClassIds } from "../lib/scope";
 
 const router = Router();
 
+type Status = "present" | "absent" | "late" | "excused";
+
 /** GET /api/attendance?date=&class_id=&subject_id= — list register records. */
 router.get("/attendance", async (req, res) => {
   try {
@@ -43,6 +45,95 @@ router.get("/attendance", async (req, res) => {
       result = result.filter((r) => r.class_id && allowed.has(r.class_id));
     }
     res.json(result);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/attendance/report?class_id=&start=&end= — per-student attendance
+ * summary for a class over a date range. Returns every student in the class
+ * (including those with no records) with counts per status and an attendance
+ * rate. Teachers are restricted to classes they are responsible for.
+ */
+router.get("/attendance/report", async (req, res) => {
+  try {
+    const requester = await getRequesterProfile(req);
+    if (!requester?.schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    if (requester.role !== "admin" && requester.role !== "teacher") {
+      res.status(403).json({ error: "Only staff can view attendance reports" }); return;
+    }
+    const { class_id, start, end } = req.query as Record<string, string>;
+    if (!class_id) { res.status(400).json({ error: "class_id is required" }); return; }
+
+    if (requester.role === "teacher") {
+      const allowed = await getTeacherClassIds(requester.id, requester.schoolId);
+      if (!allowed.has(class_id)) { res.status(403).json({ error: "You do not teach this class" }); return; }
+    }
+
+    // Roster: every student currently in the class.
+    const roster = await db
+      .select({ id: students.id, name: profiles.fullName })
+      .from(students)
+      .leftJoin(profiles, eq(students.profileId, profiles.id))
+      .where(and(eq(students.schoolId, requester.schoolId), eq(students.classId, class_id)));
+
+    // Records for the class, filtered by date range (dates are YYYY-MM-DD text,
+    // so lexicographic comparison is chronological).
+    const records = await db
+      .select({ student_id: attendanceRecords.studentId, date: attendanceRecords.date, status: attendanceRecords.status })
+      .from(attendanceRecords)
+      .where(and(eq(attendanceRecords.schoolId, requester.schoolId), eq(attendanceRecords.classId, class_id)));
+
+    const inRange = records.filter(
+      (r) => (!start || r.date >= start) && (!end || r.date <= end),
+    );
+
+    // Collapse to one status per student per day so multiple records on the
+    // same day (e.g. subject-period registers) don't inflate counts. When a
+    // day has several statuses, the most concerning one wins so a full-day
+    // absence is never masked by a single present period.
+    const RANK: Record<string, number> = { present: 0, excused: 1, late: 2, absent: 3 };
+    const perDay = new Map<string, Status>(); // key: `${student}|${date}`
+    const distinctDays = new Set<string>();
+    for (const r of inRange) {
+      if (r.status !== "present" && r.status !== "absent" && r.status !== "late" && r.status !== "excused") continue;
+      distinctDays.add(r.date);
+      const key = `${r.student_id}|${r.date}`;
+      const prev = perDay.get(key);
+      if (!prev || RANK[r.status] > RANK[prev]) perDay.set(key, r.status);
+    }
+
+    const byStudent = new Map<string, { present: number; absent: number; late: number; excused: number }>();
+    for (const [key, status] of perDay) {
+      const studentId = key.slice(0, key.indexOf("|"));
+      const s = byStudent.get(studentId) ?? { present: 0, absent: 0, late: 0, excused: 0 };
+      s[status] += 1;
+      byStudent.set(studentId, s);
+    }
+
+    const rows = roster.map((st) => {
+      const c = byStudent.get(st.id) ?? { present: 0, absent: 0, late: 0, excused: 0 };
+      const total = c.present + c.absent + c.late + c.excused;
+      // Present + late count as "in attendance"; excused is neutral (not counted
+      // against the rate). Rate is over recorded days only.
+      const denom = c.present + c.absent + c.late;
+      const rate = denom > 0 ? Math.round(((c.present + c.late) / denom) * 100) : null;
+      return {
+        student_id: st.id,
+        student_name: st.name ?? "Student",
+        present: c.present,
+        absent: c.absent,
+        late: c.late,
+        excused: c.excused,
+        total,
+        rate,
+      };
+    });
+    rows.sort((a, b) => a.student_name.localeCompare(b.student_name));
+
+    res.json({ days_recorded: distinctDays.size, students: rows });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

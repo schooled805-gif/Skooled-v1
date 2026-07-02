@@ -45,6 +45,7 @@ import ParentReports from "@/pages/parent/ParentReports";
 import ParentTuckshop from "@/pages/parent/ParentTuckshop";
 import ParentAccount from "@/pages/parent/ParentAccount";
 import ParentCalendar from "@/pages/parent/ParentCalendar";
+import ParentTermCalendar from "@/pages/parent/ParentTermCalendar";
 import ParentActivities from "@/pages/parent/ParentActivities";
 import ParentLostFound from "@/pages/parent/ParentLostFound";
 
@@ -56,6 +57,7 @@ import TeacherApprovals from "@/pages/teacher/TeacherApprovals";
 import TeacherAnnouncements from "@/pages/teacher/TeacherAnnouncements";
 import TeacherReports from "@/pages/teacher/TeacherReports";
 import TeacherAttendance from "@/pages/teacher/TeacherAttendance";
+import TeacherCalendar from "@/pages/teacher/TeacherCalendar";
 
 import StudentDashboard from "@/pages/student/StudentDashboard";
 import StudentTimetable from "@/pages/student/StudentTimetable";
@@ -211,6 +213,9 @@ function Router() {
       <Route path="/parent/calendar">
         <AuthGuard allowedRoles={['parent']}><ParentCalendar /></AuthGuard>
       </Route>
+      <Route path="/parent/term-calendar">
+        <AuthGuard allowedRoles={['parent']}><ParentTermCalendar /></AuthGuard>
+      </Route>
       <Route path="/parent/approvals">
         <AuthGuard allowedRoles={['parent']}><ParentApprovals /></AuthGuard>
       </Route>
@@ -257,6 +262,9 @@ function Router() {
       </Route>
       <Route path="/teacher/attendance">
         <AuthGuard allowedRoles={['teacher']}><TeacherAttendance /></AuthGuard>
+      </Route>
+      <Route path="/teacher/calendar">
+        <AuthGuard allowedRoles={['teacher']}><TeacherCalendar /></AuthGuard>
       </Route>
       <Route path="/teacher/lost-found">
         <AuthGuard allowedRoles={['teacher']}><StaffLostFound role="teacher" /></AuthGuard>

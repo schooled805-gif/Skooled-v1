@@ -12,3 +12,5 @@
 - [School phases](school-phases.md) — per-phase tabs only when >1 phase; filter keeps null-phase legacy rows visible under all tabs; server coerces invalid phase to null.
 - [Orphaned profiles from partial insert](orphaned-profile-partial-insert.md) — profile+student create must be one db.transaction; unique-email retry surfaces as 500.
 - [Parent-student link authz](parent-link-authz.md) — links are the trust root for fees access; create/list/delete must derive identity server-side, never client-forgeable.
+- [Date-only handling](date-only-handling.md) — YYYY-MM-DD dates: compare as strings, build "today" from local parts, never new Date(str) for display/compare.
+- [Attendance report aggregation](attendance-report-aggregation.md) — report collapses to one status per student/day (absent>late>excused>present) to avoid multi-subject inflation.

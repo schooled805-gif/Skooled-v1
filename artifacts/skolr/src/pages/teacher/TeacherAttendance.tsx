@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ClipboardCheck, Check } from 'lucide-react';
+import { Loader2, ClipboardCheck, Check, BarChart3, Printer } from 'lucide-react';
 
 type Status = 'present' | 'absent' | 'late' | 'excused';
 interface AttendanceRow { student_id: string; class_id: string | null; subject_id: string | null; date: string; status: string; }
+interface ReportRow { student_id: string; student_name: string; present: number; absent: number; late: number; excused: number; total: number; rate: number | null; }
+interface ReportResponse { days_recorded: number; students: ReportRow[]; }
 
 async function apiFetch(url: string, token: string, options?: Omit<RequestInit, 'body'> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
@@ -38,6 +40,8 @@ export default function TeacherAttendance() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const [tab, setTab] = useState<'register' | 'report'>('register');
+
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [classId, setClassId] = useState('');
@@ -57,7 +61,7 @@ export default function TeacherAttendance() {
   const { data: existing } = useQuery<AttendanceRow[]>({
     queryKey: ['attendance', date, classId, subjectId],
     queryFn: () => apiFetch(`/api/attendance?date=${date}&class_id=${classId}${subjectId ? `&subject_id=${subjectId}` : ''}`, token),
-    enabled: !!token && !!classId && !!date,
+    enabled: !!token && !!classId && !!date && tab === 'register',
   });
 
   useEffect(() => {
@@ -89,79 +93,192 @@ export default function TeacherAttendance() {
 
   const counts = STATUSES.map((s) => ({ ...s, n: roster.filter((r: any) => (marks[r.id] ?? 'present') === s.key).length }));
 
+  // ---- Report state ----
+  const monthStart = today.slice(0, 8) + '01';
+  const [reportClassId, setReportClassId] = useState('');
+  const [start, setStart] = useState(monthStart);
+  const [end, setEnd] = useState(today);
+
+  const { data: report, isFetching: reportLoading } = useQuery<ReportResponse>({
+    queryKey: ['attendance-report', reportClassId, start, end],
+    queryFn: () => apiFetch(`/api/attendance/report?class_id=${reportClassId}&start=${start}&end=${end}`, token),
+    enabled: !!token && !!reportClassId && tab === 'report',
+  });
+
+  const TabButton = ({ id, icon: Icon, label }: { id: 'register' | 'report'; icon: any; label: string }) => (
+    <button
+      type="button"
+      onClick={() => setTab(id)}
+      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${tab === id ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+      data-testid={`tab-${id}`}
+    >
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
+
   return (
     <PortalLayout role="teacher">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Attendance Register</h1>
-          <p className="text-gray-500 mt-1">Mark who's present in your class</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Attendance</h1>
+            <p className="text-gray-500 mt-1">Mark the register and review attendance reports</p>
+          </div>
+          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 print:hidden">
+            <TabButton id="register" icon={ClipboardCheck} label="Take Register" />
+            <TabButton id="report" icon={BarChart3} label="Report" />
+          </div>
         </div>
 
-        <Card>
-          <CardContent className="p-4 grid gap-3 sm:grid-cols-3">
-            <div className="space-y-1">
-              <Label>Date</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="input-date" />
-            </div>
-            <div className="space-y-1">
-              <Label>Class</Label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm" value={classId} onChange={(e) => setClassId(e.target.value)} data-testid="select-class">
-                <option value="">Select a class…</option>
-                {(classes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>Subject <span className="text-gray-400 font-normal">(optional)</span></Label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} data-testid="select-subject">
-                <option value="">General</option>
-                {(subjects ?? []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {!classId ? (
-          <Card><CardContent className="py-12 text-center text-gray-400">
-            <ClipboardCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p>Select a class to load the roster</p>
-          </CardContent></Card>
-        ) : !roster.length ? (
-          <Card><CardContent className="py-12 text-center text-gray-400">No students in this class</CardContent></Card>
-        ) : (
+        {tab === 'register' ? (
           <>
-            <div className="flex flex-wrap gap-2">
-              {counts.map((c) => <span key={c.key} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">{c.label}: <strong>{c.n}</strong></span>)}
-            </div>
             <Card>
-              <CardContent className="p-0 divide-y">
-                {roster.map((s: any) => (
-                  <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3" data-testid={`row-student-${s.id}`}>
-                    <span className="text-sm font-medium text-gray-900">{s.full_name ?? 'Student'}</span>
-                    <div className="flex gap-1.5">
-                      {STATUSES.map((st) => {
-                        const active = (marks[s.id] ?? 'present') === st.key;
-                        return (
-                          <button
-                            key={st.key}
-                            type="button"
-                            onClick={() => setMarks((m) => ({ ...m, [s.id]: st.key }))}
-                            className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${active ? st.color : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
-                            data-testid={`button-${st.key}-${s.id}`}
-                          >
-                            {st.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              <CardContent className="p-4 grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label>Date</Label>
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="input-date" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Class</Label>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm" value={classId} onChange={(e) => setClassId(e.target.value)} data-testid="select-class">
+                    <option value="">Select a class…</option>
+                    {(classes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Subject <span className="text-gray-400 font-normal">(optional)</span></Label>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} data-testid="select-subject">
+                    <option value="">General</option>
+                    {(subjects ?? []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
               </CardContent>
             </Card>
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-save-register">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />} Save Register
-              </Button>
-            </div>
+
+            {!classId ? (
+              <Card><CardContent className="py-12 text-center text-gray-400">
+                <ClipboardCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p>Select a class to load the roster</p>
+              </CardContent></Card>
+            ) : !roster.length ? (
+              <Card><CardContent className="py-12 text-center text-gray-400">No students in this class</CardContent></Card>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {counts.map((c) => <span key={c.key} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">{c.label}: <strong>{c.n}</strong></span>)}
+                </div>
+                <Card>
+                  <CardContent className="p-0 divide-y">
+                    {roster.map((s: any) => (
+                      <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3" data-testid={`row-student-${s.id}`}>
+                        <span className="text-sm font-medium text-gray-900">{s.full_name ?? 'Student'}</span>
+                        <div className="flex gap-1.5">
+                          {STATUSES.map((st) => {
+                            const active = (marks[s.id] ?? 'present') === st.key;
+                            return (
+                              <button
+                                key={st.key}
+                                type="button"
+                                onClick={() => setMarks((m) => ({ ...m, [s.id]: st.key }))}
+                                className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${active ? st.color : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                                data-testid={`button-${st.key}-${s.id}`}
+                              >
+                                {st.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-save-register">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />} Save Register
+                  </Button>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <Card className="print:hidden">
+              <CardContent className="p-4 grid gap-3 sm:grid-cols-4">
+                <div className="space-y-1">
+                  <Label>Class</Label>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm" value={reportClassId} onChange={(e) => setReportClassId(e.target.value)} data-testid="select-report-class">
+                    <option value="">Select a class…</option>
+                    {(classes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>From</Label>
+                  <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} data-testid="input-report-start" />
+                </div>
+                <div className="space-y-1">
+                  <Label>To</Label>
+                  <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} data-testid="input-report-end" />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => window.print()}
+                    disabled={!report?.students?.length}
+                    data-testid="button-print-report"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" /> Print
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {!reportClassId ? (
+              <Card><CardContent className="py-12 text-center text-gray-400">
+                <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p>Select a class to build the attendance report</p>
+              </CardContent></Card>
+            ) : reportLoading ? (
+              <Card><CardContent className="py-12 text-center text-gray-400"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>
+            ) : !report?.students?.length ? (
+              <Card><CardContent className="py-12 text-center text-gray-400">No students in this class</CardContent></Card>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="px-4 py-3 border-b text-sm text-gray-500">
+                    {report.days_recorded} day{report.days_recorded === 1 ? '' : 's'} recorded from {start} to {end}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b">
+                          <th className="px-4 py-2 font-medium">Student</th>
+                          <th className="px-3 py-2 font-medium text-center">Present</th>
+                          <th className="px-3 py-2 font-medium text-center">Absent</th>
+                          <th className="px-3 py-2 font-medium text-center">Late</th>
+                          <th className="px-3 py-2 font-medium text-center">Excused</th>
+                          <th className="px-4 py-2 font-medium text-right">Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {report.students.map((r) => (
+                          <tr key={r.student_id} data-testid={`report-row-${r.student_id}`}>
+                            <td className="px-4 py-2.5 font-medium text-gray-900">{r.student_name}</td>
+                            <td className="px-3 py-2.5 text-center text-emerald-700">{r.present}</td>
+                            <td className="px-3 py-2.5 text-center text-red-600">{r.absent}</td>
+                            <td className="px-3 py-2.5 text-center text-amber-600">{r.late}</td>
+                            <td className="px-3 py-2.5 text-center text-blue-600">{r.excused}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
+                              {r.rate === null ? '—' : `${r.rate}%`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
