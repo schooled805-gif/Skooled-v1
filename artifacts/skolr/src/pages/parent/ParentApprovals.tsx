@@ -91,7 +91,7 @@ export default function ParentApprovals() {
                 <CardContent className="p-4 flex items-center gap-4">
                   {statusIcon(a.status)}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{(a as any).event_title ?? 'Event'}</p>
+                    <p className="font-medium text-gray-900 truncate">{(a as any).event_title ?? (a as any).title ?? 'Request'}</p>
                     <p className="text-sm text-gray-500">{(a as any).student_name ?? 'Student'}</p>
                     {a.response_comment && (
                       <p className="text-xs text-gray-400 mt-1 italic">"{a.response_comment}"</p>
@@ -133,7 +133,8 @@ export default function ParentApprovals() {
           <div className="space-y-4 py-2">
             {selected && (
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="font-medium text-gray-900">{selected.event_title ?? 'Event'}</p>
+                <p className="font-medium text-gray-900">{selected.event_title ?? (selected as any).title ?? 'Request'}</p>
+                {(selected as any).description && <p className="text-sm text-gray-500 mt-1">{(selected as any).description}</p>}
                 <p className="text-gray-500 text-xs mt-0.5">for {selected.student_name ?? 'student'}</p>
               </div>
             )}

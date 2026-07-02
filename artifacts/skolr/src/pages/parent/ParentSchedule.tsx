@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Clock } from 'lucide-react';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function ParentSchedule() {
   const { session } = useAuth();
@@ -29,6 +29,14 @@ export default function ParentSchedule() {
     },
     enabled: !!token,
   });
+  const { data: customEvents } = useQuery<any[]>({
+    queryKey: ['parent-custom-events'],
+    queryFn: async () => {
+      const r = await fetch('/api/custom-events', { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? r.json() : [];
+    },
+    enabled: !!token,
+  });
   const signedIds = new Set((signups ?? []).map(s => s.activity_id));
   const myActivities = (activities ?? []).filter(a => signedIds.has(a.id));
 
@@ -46,7 +54,9 @@ export default function ParentSchedule() {
             {DAYS.map(day => {
               const dayEntries = (entries ?? []).filter(e => e.day_of_week?.toLowerCase() === day.toLowerCase());
               const dayActivities = myActivities.filter(a => a.day_of_week?.toLowerCase() === day.toLowerCase());
-              const hasNothing = dayEntries.length === 0 && dayActivities.length === 0;
+              const dayCustom = (customEvents ?? []).filter(c =>
+                (c.days_of_week ?? []).some((d: string) => d.toLowerCase() === day.toLowerCase()));
+              const hasNothing = dayEntries.length === 0 && dayActivities.length === 0 && dayCustom.length === 0;
               return (
                 <Card key={day}>
                   <CardHeader className="pb-2">
@@ -85,6 +95,22 @@ export default function ParentSchedule() {
                               {act.location && <span className="text-sm text-gray-500 ml-2">@ {act.location}</span>}
                             </div>
                             <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 text-xs">Activity</Badge>
+                          </div>
+                        ))}
+                        {dayCustom
+                          .slice()
+                          .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+                          .map(ev => (
+                          <div key={ev.id} className="flex items-center gap-4 p-3 bg-teal-50 rounded-lg border border-teal-100">
+                            <div className="flex items-center gap-1 text-sm text-gray-500 w-28 shrink-0">
+                              <Clock className="h-3.5 w-3.5" />
+                              {ev.start_time ?? '—'}{ev.end_time ? ` – ${ev.end_time}` : ''}
+                            </div>
+                            <div className="flex-1">
+                              <span className="font-medium text-gray-900">{ev.title}</span>
+                              {ev.location && <span className="text-sm text-gray-500 ml-2">@ {ev.location}</span>}
+                            </div>
+                            <Badge className="bg-teal-100 text-teal-700 hover:bg-teal-100 text-xs">Personal</Badge>
                           </div>
                         ))}
                       </div>

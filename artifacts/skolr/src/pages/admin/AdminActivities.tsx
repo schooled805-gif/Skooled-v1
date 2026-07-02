@@ -48,7 +48,20 @@ interface Activity {
   start_time: string | null;
   end_time: string | null;
   location: string | null;
+  season: string | null;
+  start_date: string | null;
+  end_date: string | null;
 }
+
+const SEASONS: { value: string; label: string }[] = [
+  { value: "weekly", label: "Weekly (ongoing)" },
+  { value: "term1", label: "Term 1" },
+  { value: "term2", label: "Term 2" },
+  { value: "term3", label: "Term 3" },
+  { value: "term4", label: "Term 4" },
+  { value: "annual", label: "Annual" },
+];
+const seasonLabel = (v: string | null) => SEASONS.find((s) => s.value === v)?.label ?? "Weekly (ongoing)";
 
 interface Provider {
   id: string;
@@ -62,6 +75,7 @@ const emptyForm = {
   name: "", description: "", category: "", is_external: false,
   coach_teacher_id: "", provider_id: "", day_of_week: "Monday",
   start_time: "14:00", end_time: "15:00", location: "",
+  season: "weekly", start_date: "", end_date: "",
 };
 
 export default function AdminActivities() {
@@ -110,6 +124,9 @@ export default function AdminActivities() {
         start_time: form.start_time || null,
         end_time: form.end_time || null,
         location: form.location || null,
+        season: form.season || "weekly",
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
       };
       return editId
         ? apiFetch(`/api/activities/${editId}`, token, { method: "PATCH", body })
@@ -163,6 +180,9 @@ export default function AdminActivities() {
       start_time: a.start_time ?? "14:00",
       end_time: a.end_time ?? "15:00",
       location: a.location ?? "",
+      season: a.season ?? "weekly",
+      start_date: a.start_date ?? "",
+      end_date: a.end_date ?? "",
     });
     setOpen(true);
   };
@@ -213,9 +233,14 @@ export default function AdminActivities() {
                             {a.category && <p className="text-xs text-gray-400">{a.category}</p>}
                           </div>
                         </div>
-                        <Badge className={a.is_external ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"}>
-                          {a.is_external ? "External" : "In-house"}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge className={a.is_external ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"}>
+                            {a.is_external ? "External" : "In-house"}
+                          </Badge>
+                          {a.season && a.season !== "weekly" && (
+                            <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 text-[10px]">{seasonLabel(a.season)}</Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
                         <p className="flex items-center gap-1.5 text-gray-500">
@@ -344,6 +369,36 @@ export default function AdminActivities() {
                   <option value="">Select coach…</option>
                   {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
                 </select>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Season</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={form.season}
+                onChange={(e) => setForm((f) => ({ ...f, season: e.target.value }))}
+                data-testid="select-season"
+              >
+                {SEASONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <p className="text-xs text-gray-400">
+                {form.season === "weekly"
+                  ? "Runs every week on the chosen day."
+                  : "Runs for a fixed season — set the date range below."}
+              </p>
+            </div>
+
+            {form.season !== "weekly" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Start date</Label>
+                  <Input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} data-testid="input-start-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>End date</Label>
+                  <Input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} data-testid="input-end-date" />
+                </div>
               </div>
             )}
 

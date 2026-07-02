@@ -198,3 +198,34 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   created_at        timestamp DEFAULT now(),
   updated_at        timestamp
 );
+
+-- ============================================================================
+-- BATCH 2: free-text approvals, activity seasons/dates, parent custom events
+-- ============================================================================
+
+-- 16. approvals — allow free-text requests (nullable event_id + title/description)
+ALTER TABLE approvals ALTER COLUMN event_id DROP NOT NULL;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS title       text;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS description text;
+
+-- 17. activities — recurrence season + optional term/season date range
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS season     text NOT NULL DEFAULT 'weekly';
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS start_date text;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS end_date   text;
+
+-- 18. custom_events — parent-added extra participation for their own child
+CREATE TABLE IF NOT EXISTS custom_events (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_user_id text NOT NULL,
+  student_id     uuid NOT NULL,
+  title          text NOT NULL,
+  description    text,
+  days_of_week   text[],
+  start_time     text,
+  end_time       text,
+  start_date     text,                        -- YYYY-MM-DD (inclusive)
+  end_date       text,                        -- YYYY-MM-DD (inclusive)
+  location       text,
+  school_id      uuid NOT NULL,
+  created_at     timestamp DEFAULT now()
+);

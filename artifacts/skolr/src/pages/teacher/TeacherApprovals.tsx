@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   useListApprovals, useListEvents, useListStudents, useListClasses, useListSubjects,
@@ -40,18 +42,29 @@ export default function TeacherApprovals() {
   const { data: subjects } = useListSubjects();
   const [open, setOpen] = useState(false);
   const [eventId, setEventId] = useState('');
+  const [reqTitle, setReqTitle] = useState('');
+  const [reqDescription, setReqDescription] = useState('');
   const [scope, setScope] = useState<RecipientScope>(emptyScope);
   const [submitting, setSubmitting] = useState(false);
 
+  const canSubmit = (!!eventId || !!reqTitle.trim()) && scopeCount(scope) > 0;
+
   const handleCreate = async () => {
-    if (!eventId || scopeCount(scope) === 0) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const result = await apiPost('/api/approvals/bulk', token, { event_id: eventId, ...scope });
+      const result = await apiPost('/api/approvals/bulk', token, {
+        event_id: eventId || undefined,
+        title: reqTitle.trim() || undefined,
+        description: reqDescription.trim() || undefined,
+        ...scope,
+      });
       toast({ title: 'Approval requests created', description: `${result.created} request(s) sent to parents.` });
       qc.invalidateQueries({ queryKey: getListApprovalsQueryKey() });
       setOpen(false);
       setEventId('');
+      setReqTitle('');
+      setReqDescription('');
       setScope(emptyScope);
     } catch (err: any) {
       toast({ title: 'Could not create', description: err?.message, variant: 'destructive' });
@@ -84,7 +97,8 @@ export default function TeacherApprovals() {
               <Card key={a.id}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{a.event_title ?? 'Event'}</p>
+                    <p className="font-medium text-gray-900">{a.event_title ?? (a as any).title ?? 'Request'}</p>
+                    {(a as any).description && <p className="text-xs text-gray-500">{(a as any).description}</p>}
                     <p className="text-sm text-gray-500">{a.student_name}</p>
                     {a.response_comment && <p className="text-xs text-gray-400 italic mt-1">"{a.response_comment}"</p>}
                   </div>
@@ -101,14 +115,26 @@ export default function TeacherApprovals() {
           <DialogHeader><DialogTitle>Create Approval Request</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Event</Label>
+              <Label>Link to an event <span className="text-gray-400 text-xs">(optional)</span></Label>
               <select className="w-full border rounded-md px-3 py-2 text-sm" value={eventId} onChange={(e) => setEventId(e.target.value)} data-testid="select-event">
-                <option value="">Select an event…</option>
+                <option value="">No event — free-text request</option>
                 {(events ?? []).map((ev: any) => (
                   <option key={ev.id} value={ev.id}>{ev.title}</option>
                 ))}
               </select>
             </div>
+            {!eventId && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Request title <span className="text-red-500">*</span></Label>
+                  <Input value={reqTitle} onChange={(e) => setReqTitle(e.target.value)} placeholder="e.g. Permission for museum trip" data-testid="input-request-title" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Details <span className="text-gray-400 text-xs">(optional)</span></Label>
+                  <Textarea value={reqDescription} onChange={(e) => setReqDescription(e.target.value)} placeholder="Add any details parents should know…" rows={3} data-testid="input-request-description" />
+                </div>
+              </>
+            )}
             <div className="space-y-1.5">
               <Label>Recipients</Label>
               <RecipientSelector
@@ -122,7 +148,7 @@ export default function TeacherApprovals() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={submitting || !eventId || scopeCount(scope) === 0} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-create-approval">
+            <Button onClick={handleCreate} disabled={submitting || !canSubmit} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-create-approval">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>

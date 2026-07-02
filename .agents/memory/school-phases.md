@@ -16,6 +16,11 @@ tab, otherwise existing data silently disappears for multi-phase schools.
 **multiPhase = phases.length > 1.** Tabs (PhaseTabs) and new-row phase tagging only
 activate when multiPhase; with 0/1 phase the UI behaves exactly as pre-feature.
 
+**Enrolment/assignment dialogs must NOT phase-filter their class dropdowns.** The
+active phase tab is a LIST filter, not an enrolment boundary. Show ALL classes
+(labelled by phase when multiPhase) in add/edit-student dialogs, else admins cannot
+enrol into a phase whose tab isn't active (real bug: "can't add high-school students").
+
 **Server validation:** `normalizePhase` in api-server `src/lib/validation.ts` coerces any
 non-allowed phase value to null on create/update of classes/subjects/profiles/teachers.
 **Why:** an invalid phase string would hide a row from all tabs; coercing to null keeps it

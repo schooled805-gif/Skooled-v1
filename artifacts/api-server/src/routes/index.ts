@@ -22,6 +22,7 @@ import storageRouter from "./storage";
 import lostFoundRouter from "./lostFound";
 import schoolLinksRouter from "./schoolLinks";
 import attendanceRouter from "./attendance";
+import customEventsRouter from "./customEvents";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(storageRouter);
 router.use(lostFoundRouter);
 router.use(schoolLinksRouter);
 router.use(attendanceRouter);
+router.use(customEventsRouter);
 
 export default router;

@@ -10,6 +10,7 @@ import { useListStudents, useListClasses, getListStudentsQueryKey } from '@works
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhase } from '@/contexts/PhaseContext';
+import { phaseLabel } from '@/lib/phases';
 import { PhaseTabs } from '@/components/PhaseTabs';
 import { Loader2, Plus, Search, GraduationCap, Download, Upload, Trash2, AlertCircle, Pencil } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,6 +40,12 @@ export default function AdminStudents() {
   const { data: classes } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
   const classPhaseMap = new Map((classes ?? []).map(c => [c.id, (c as any).phase ?? null]));
   const phaseClasses = (classes ?? []).filter(c => !multiPhase || (c as any).phase === activePhase || !(c as any).phase);
+  // Enrolment dialogs list ALL classes (labelled by phase in multi-phase schools)
+  // so admins can add students to any phase — including High School — regardless
+  // of which phase tab is currently active.
+  const dialogClasses = (classes ?? []).slice().sort((a, b) =>
+    phaseLabel((a as any).phase).localeCompare(phaseLabel((b as any).phase)) ||
+    (a.name ?? '').localeCompare(b.name ?? ''));
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -61,8 +68,8 @@ export default function AdminStudents() {
 
   const handleCreate = async () => {
     if (!schoolId || !user?.id) return;
-    if (!form.full_name.trim() || !form.email.trim() || !form.grade.trim()) {
-      toast({ title: 'Name, email, and grade are required', variant: 'destructive' }); return;
+    if (!form.full_name.trim() || !form.grade.trim()) {
+      toast({ title: 'Name and grade are required', variant: 'destructive' }); return;
     }
     if (!form.class_id) {
       toast({ title: 'Class assignment is required', description: 'A student cannot be enrolled without a class.', variant: 'destructive' }); return;
@@ -72,10 +79,10 @@ export default function AdminStudents() {
       const res = await fetch('/api/students/full-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
-        body: JSON.stringify({ full_name: form.full_name.trim(), email: form.email.trim().toLowerCase(), grade: form.grade.trim(), class_id: form.class_id, date_of_birth: form.date_of_birth || undefined, school_id: schoolId }),
+        body: JSON.stringify({ full_name: form.full_name.trim(), email: form.email.trim() ? form.email.trim().toLowerCase() : undefined, grade: form.grade.trim(), class_id: form.class_id, date_of_birth: form.date_of_birth || undefined, school_id: schoolId }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create student'); }
-      toast({ title: 'Student enrolled!', description: `${form.full_name} has been added and will receive an email invitation.` });
+      toast({ title: 'Student enrolled!', description: form.email.trim() ? `${form.full_name} has been added and will receive an email invitation.` : `${form.full_name} has been added.` });
       qc.invalidateQueries({ queryKey: getListStudentsQueryKey() });
       setOpen(false);
       setForm({ full_name: '', email: '', grade: '', class_id: '', date_of_birth: '' });
@@ -140,20 +147,20 @@ export default function AdminStudents() {
       const gradeIdx = cols.findIndex(c => c.includes('grade'));
       const classIdx = cols.findIndex(c => c.includes('class'));
       const dobIdx = cols.findIndex(c => c.includes('dob') || c.includes('birth'));
-      if (nameIdx < 0 || emailIdx < 0 || gradeIdx < 0) throw new Error('CSV must have Full Name, Email, and Grade columns');
+      if (nameIdx < 0 || gradeIdx < 0) throw new Error('CSV must have Full Name and Grade columns');
       const classNameMap = new Map((classes ?? []).map(c => [c.name.toLowerCase(), c.id]));
       let success = 0, failed = 0;
       for (let i = 1; i < lines.length; i++) {
         const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
         const full_name = vals[nameIdx] ?? '';
-        const email = vals[emailIdx] ?? '';
+        const email = emailIdx >= 0 ? vals[emailIdx] ?? '' : '';
         const grade = vals[gradeIdx] ?? '';
         const classRaw = classIdx >= 0 ? vals[classIdx] ?? '' : '';
         const class_id = classNameMap.get(classRaw.toLowerCase()) ?? undefined;
         const date_of_birth = dobIdx >= 0 ? vals[dobIdx] ?? '' : '';
-        if (!full_name || !email || !grade || !class_id) { failed++; continue; }
+        if (!full_name || !grade || !class_id) { failed++; continue; }
         try {
-          const r = await fetch('/api/students/full-create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email.toLowerCase(), grade, class_id, date_of_birth: date_of_birth || undefined, school_id: schoolId }) });
+          const r = await fetch('/api/students/full-create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ full_name, email: email ? email.toLowerCase() : undefined, grade, class_id, date_of_birth: date_of_birth || undefined, school_id: schoolId }) });
           if (r.ok) success++; else failed++;
         } catch { failed++; }
       }
@@ -193,7 +200,7 @@ export default function AdminStudents() {
 
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>CSV import columns: <strong>Full Name, Email, Grade, Class Name, Date of Birth</strong>. Class Name must match an existing class exactly.</span>
+          <span>CSV import columns: <strong>Full Name, Grade, Class Name</strong> (required), <strong>Email, Date of Birth</strong> (optional). Class Name must match an existing class exactly.</span>
         </div>
 
         <Card>
@@ -266,7 +273,7 @@ export default function AdminStudents() {
           <DialogHeader><DialogTitle>Enrol New Student</DialogTitle></DialogHeader>
           <div className="space-y-4 py-1">
             <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-              The student will receive an email invitation to set their password and access their portal.
+              If you provide an email, the student will receive an invitation to set their password and access their portal. Email is optional.
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
               <div>
@@ -280,7 +287,7 @@ export default function AdminStudents() {
               <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Jane Smith" data-testid="input-full-name" />
             </div>
             <div className="space-y-1.5">
-              <Label>Email <span className="text-red-500">*</span></Label>
+              <Label>Email <span className="text-gray-400 text-xs">(optional)</span></Label>
               <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@school.edu" data-testid="input-email" />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -300,7 +307,7 @@ export default function AdminStudents() {
                 value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))} data-testid="select-class"
               >
                 <option value="">— Select a class (required) —</option>
-                {phaseClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}</option>)}
+                {dialogClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}{multiPhase && (c as any).phase ? ` — ${phaseLabel((c as any).phase)}` : ''}</option>)}
               </select>
               {!form.class_id && (
                 <p className="text-xs text-orange-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Class assignment is required to complete enrolment</p>
@@ -315,7 +322,7 @@ export default function AdminStudents() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={saving || !form.full_name || !form.email || !form.grade || !form.class_id} className="bg-blue-600 hover:bg-blue-700" data-testid="button-create-student">
+            <Button onClick={handleCreate} disabled={saving || !form.full_name || !form.grade || !form.class_id} className="bg-blue-600 hover:bg-blue-700" data-testid="button-create-student">
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Enrol Student
             </Button>
           </DialogFooter>
@@ -337,7 +344,7 @@ export default function AdminStudents() {
                 value={editForm.class_id} onChange={e => setEditForm(f => ({ ...f, class_id: e.target.value }))} data-testid="select-edit-class"
               >
                 <option value="">— Select a class (required) —</option>
-                {phaseClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}</option>)}
+                {dialogClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.grade_level ? ` (${c.grade_level})` : ''}{multiPhase && (c as any).phase ? ` — ${phaseLabel((c as any).phase)}` : ''}</option>)}
               </select>
             </div>
           </div>

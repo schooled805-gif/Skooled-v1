@@ -123,7 +123,11 @@ export const events = pgTable("events", {
 // ── APPROVALS ─────────────────────────────────────────────────────────────────
 export const approvals = pgTable("approvals", {
   id: uuid("id").primaryKey().defaultRandom(),
-  eventId: uuid("event_id").notNull(),
+  // Optional: a request may reference an existing event OR be free-text only.
+  eventId: uuid("event_id"),
+  // Free-text request details (used when there is no linked event).
+  title: text("title"),
+  description: text("description"),
   studentId: uuid("student_id").notNull(),
   parentUserId: text("parent_user_id").notNull(),
   status: text("status").notNull().default("pending"),
@@ -316,6 +320,10 @@ export const activities = pgTable("activities", {
   startTime: text("start_time"),
   endTime: text("end_time"),
   location: text("location"),
+  // Recurrence scope: weekly | term1 | term2 | term3 | term4 | annual
+  season: text("season").notNull().default("weekly"),
+  startDate: text("start_date"), // optional term/season start (YYYY-MM-DD)
+  endDate: text("end_date"),     // optional term/season end (YYYY-MM-DD)
   schoolId: uuid("school_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -327,6 +335,26 @@ export const activitySignups = pgTable("activity_signups", {
   studentId: uuid("student_id").notNull(),
   parentUserId: text("parent_user_id"),
   status: text("status").notNull().default("active"), // active | cancelled
+  schoolId: uuid("school_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── CUSTOM_EVENTS (parent-added extra participation for their own child) ───────
+// Lets a parent record an activity their child does that is NOT on the school
+// calendar (e.g. private swimming). Recurs on the chosen weekdays between the
+// optional start/end dates and shows on the parent's + child's calendars.
+export const customEvents = pgTable("custom_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  parentUserId: text("parent_user_id").notNull(),
+  studentId: uuid("student_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  daysOfWeek: text("days_of_week").array(), // e.g. ["Monday","Wednesday"]
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  startDate: text("start_date"), // YYYY-MM-DD (inclusive)
+  endDate: text("end_date"),     // YYYY-MM-DD (inclusive)
+  location: text("location"),
   schoolId: uuid("school_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });

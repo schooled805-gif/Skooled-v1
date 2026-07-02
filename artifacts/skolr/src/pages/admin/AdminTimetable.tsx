@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useListTimetableEntries, useCreateTimetableEntry, useDeleteTimetableEntry, getListTimetableEntriesQueryKey, useListSubjects, useListClasses, useListProfiles } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhase } from '@/contexts/PhaseContext';
 import { PhaseTabs } from '@/components/PhaseTabs';
@@ -16,8 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+interface SubjectTeacher { id: string; subject_id: string; teacher_id: string; teacher_name: string | null; }
+
 export default function AdminTimetable() {
-  const { schoolId } = useAuth();
+  const { schoolId, session } = useAuth();
+  const token = session?.access_token ?? '';
   const { multiPhase, activePhase } = usePhase();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -27,6 +30,15 @@ export default function AdminTimetable() {
   const { data: subjects } = useListSubjects();
   const { data: classesList } = useListClasses(schoolId ? { school_id: schoolId } : undefined);
   const { data: profilesList } = useListProfiles(schoolId ? { school_id: schoolId } : undefined);
+  const { data: subjectTeachers = [] } = useQuery<SubjectTeacher[]>({
+    queryKey: ['subject-teachers', schoolId],
+    queryFn: async () => {
+      const res = await fetch('/api/subject-teachers', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token,
+  });
   const classPhaseMap = new Map(((classesList ?? []) as any[]).map((c) => [c.id, c.phase ?? null]));
   const inPhase = (phase: string | null) => !multiPhase || phase === activePhase || !phase;
   const teachers = ((profilesList ?? []) as any[]).filter((p) => p.role === 'teacher' && inPhase(p.phase ?? null));
@@ -122,7 +134,12 @@ export default function AdminTimetable() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Subject</Label>
-                <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.subject_id} onChange={e => setForm(f => ({ ...f, subject_id: e.target.value }))} data-testid="select-subject">
+                <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.subject_id} onChange={e => {
+                  const subjectId = e.target.value;
+                  const assigned = subjectTeachers.filter(st => st.subject_id === subjectId);
+                  const autoTeacher = assigned.length === 1 ? assigned[0].teacher_id : (assigned.length > 1 ? assigned[0].teacher_id : '');
+                  setForm(f => ({ ...f, subject_id: subjectId, teacher_id: autoTeacher || f.teacher_id }));
+                }} data-testid="select-subject">
                   <option value="">Select subject…</option>
                   {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -141,6 +158,9 @@ export default function AdminTimetable() {
                 <option value="">Select teacher…</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
               </select>
+              {form.subject_id && subjectTeachers.some(st => st.subject_id === form.subject_id) && (
+                <p className="text-xs text-gray-400">Auto-filled from the subject's assigned teacher — change it if needed.</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label>Day</Label>

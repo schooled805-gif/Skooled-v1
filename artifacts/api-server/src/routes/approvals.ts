@@ -34,6 +34,8 @@ router.get("/approvals", async (req, res) => {
       response_comment: approvals.responseComment,
       responded_at: approvals.respondedAt,
       school_id: approvals.schoolId,
+      title: approvals.title,
+      description: approvals.description,
       event_title: events.title,
       student_name: profiles.fullName,
       created_at: approvals.createdAt,
@@ -119,15 +121,23 @@ router.post("/approvals/bulk", async (req, res) => {
     if (requester.role !== "teacher" && requester.role !== "admin") {
       res.status(403).json({ error: "Only staff can create approval requests" }); return;
     }
-    const { event_id, student_ids, class_ids, grade_levels, subject_ids } = req.body ?? {};
-    if (!event_id) { res.status(400).json({ error: "event_id is required" }); return; }
+    const { event_id, title, description, student_ids, class_ids, grade_levels, subject_ids } = req.body ?? {};
+    const reqTitle = typeof title === "string" ? title.trim() : "";
+    const reqDescription = typeof description === "string" ? description.trim() : "";
+    if (!event_id && !reqTitle) {
+      res.status(400).json({ error: "Provide either an event or a request title" }); return;
+    }
 
-    // Confirm the event belongs to this school.
-    const [event] = await db.select({ id: events.id, title: events.title })
-      .from(events)
-      .where(and(eq(events.id, event_id), eq(events.schoolId, requester.schoolId)))
-      .limit(1);
-    if (!event) { res.status(404).json({ error: "Event not found" }); return; }
+    // If an event was referenced, confirm it belongs to this school.
+    let event: { id: string; title: string } | undefined;
+    if (event_id) {
+      [event] = await db.select({ id: events.id, title: events.title })
+        .from(events)
+        .where(and(eq(events.id, event_id), eq(events.schoolId, requester.schoolId)))
+        .limit(1);
+      if (!event) { res.status(404).json({ error: "Event not found" }); return; }
+    }
+    const requestLabel = event?.title ?? reqTitle;
 
     // Teachers may only target students in their own classes; admins the school.
     const allowedClassIds = requester.role === "teacher"
@@ -157,7 +167,9 @@ router.post("/approvals/bulk", async (req, res) => {
       seen.add(key);
       return true;
     }).map((l) => ({
-      eventId: event_id as string,
+      eventId: event_id ? (event_id as string) : null,
+      title: reqTitle || null,
+      description: reqDescription || null,
       studentId: l.studentId,
       parentUserId: l.parentUserId,
       status: "pending" as const,
@@ -177,8 +189,8 @@ router.post("/approvals/bulk", async (req, res) => {
         if (tokens.length) {
           await sendPushNotifications(tokens, {
             title: "✅ Approval Required",
-            body: `Your approval is needed for "${event.title}"`,
-            data: { type: "approval", event_id: event_id as string },
+            body: `Your approval is needed for "${requestLabel}"`,
+            data: { type: "approval", event_id: event_id ? (event_id as string) : null },
           });
         }
       } catch {

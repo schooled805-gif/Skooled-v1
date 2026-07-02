@@ -5,11 +5,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useListParentStudentLinks } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trophy, Clock, Plus, X } from "lucide-react";
+import { Loader2, Trophy, Clock, Plus, X, CalendarPlus, Trash2, MapPin } from "lucide-react";
+
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 async function apiFetch(url: string, token: string, options?: Omit<RequestInit, "body"> & { body?: unknown }) {
   const { body, ...rest } = options ?? {};
@@ -54,6 +58,31 @@ interface ChildLink {
   student_name: string | null;
 }
 
+interface CustomEvent {
+  id: string;
+  student_id: string;
+  title: string;
+  description: string | null;
+  days_of_week: string[];
+  start_time: string | null;
+  end_time: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  location: string | null;
+}
+
+const emptyCustom = {
+  student_id: "",
+  title: "",
+  description: "",
+  days_of_week: [] as string[],
+  start_time: "",
+  end_time: "",
+  start_date: "",
+  end_date: "",
+  location: "",
+};
+
 export default function ParentActivities() {
   const { session } = useAuth();
   const { user } = useAuth();
@@ -74,8 +103,55 @@ export default function ParentActivities() {
   const { data: rawLinks } = useListParentStudentLinks(user?.id ? { parent_user_id: user.id } : undefined);
   const children = ((rawLinks ?? []) as unknown as ChildLink[]);
 
+  const { data: customEvents = [] } = useQuery<CustomEvent[]>({
+    queryKey: ["custom-events"],
+    queryFn: () => apiFetch(`/api/custom-events`, token),
+    enabled: !!token,
+  });
+
+  const childName = (id: string) => children.find((c) => c.student_id === id)?.student_name ?? "Child";
+
   const [signupFor, setSignupFor] = useState<Activity | null>(null);
   const [childId, setChildId] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customForm, setCustomForm] = useState({ ...emptyCustom });
+
+  const addCustom = useMutation({
+    mutationFn: () => apiFetch(`/api/custom-events`, token, {
+      method: "POST",
+      body: {
+        student_id: customForm.student_id,
+        title: customForm.title,
+        description: customForm.description || null,
+        days_of_week: customForm.days_of_week,
+        start_time: customForm.start_time || null,
+        end_time: customForm.end_time || null,
+        start_date: customForm.start_date || null,
+        end_date: customForm.end_date || null,
+        location: customForm.location || null,
+      },
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["custom-events"] });
+      setCustomOpen(false); setCustomForm({ ...emptyCustom });
+      toast({ title: "Activity added" });
+    },
+    onError: (e: any) => toast({ title: "Could not add", description: e?.message, variant: "destructive" }),
+  });
+
+  const deleteCustom = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/custom-events/${id}`, token, { method: "DELETE" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["custom-events"] }); toast({ title: "Activity removed" }); },
+    onError: (e: any) => toast({ title: "Could not remove", description: e?.message, variant: "destructive" }),
+  });
+
+  const toggleDay = (day: string) =>
+    setCustomForm((f) => ({
+      ...f,
+      days_of_week: f.days_of_week.includes(day)
+        ? f.days_of_week.filter((d) => d !== day)
+        : [...f.days_of_week, day],
+    }));
 
   const signUp = useMutation({
     mutationFn: ({ activityId, studentId }: { activityId: string; studentId: string }) =>
@@ -174,7 +250,141 @@ export default function ParentActivities() {
             })}
           </div>
         )}
+
+        {/* ── Parent-added activities (not on the school calendar) ── */}
+        <div className="pt-4 border-t">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-gray-900">My Child's Other Activities</h2>
+              <p className="text-gray-500 text-sm mt-1">Add activities your child does outside school (e.g. private swimming). They show on your schedule.</p>
+            </div>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 gap-1"
+              onClick={() => { setCustomForm({ ...emptyCustom }); setCustomOpen(true); }}
+              disabled={children.length === 0}
+              data-testid="button-add-custom-event"
+            >
+              <CalendarPlus className="h-4 w-4" /> Add Activity
+            </Button>
+          </div>
+          {customEvents.length === 0 ? (
+            <Card><CardContent className="py-10 text-center text-gray-400">
+              <CalendarPlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No extra activities added yet</p>
+            </CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customEvents.map((ev) => (
+                <Card key={ev.id} data-testid={`card-custom-${ev.id}`}>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <p className="font-medium text-gray-900">{ev.title}</p>
+                        <p className="text-xs text-indigo-600">{childName(ev.student_id)}</p>
+                      </div>
+                      <button className="text-gray-400 hover:text-red-600" onClick={() => deleteCustom.mutate(ev.id)} data-testid={`button-delete-custom-${ev.id}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {ev.description && <p className="text-sm text-gray-600">{ev.description}</p>}
+                    <div className="text-sm text-gray-500 space-y-1">
+                      {ev.days_of_week.length > 0 && (
+                        <p className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
+                          {ev.days_of_week.map((d) => d.slice(0, 3)).join(", ")}
+                          {ev.start_time ? ` · ${ev.start_time}${ev.end_time ? `–${ev.end_time}` : ""}` : ""}
+                        </p>
+                      )}
+                      {ev.location && <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{ev.location}</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Custom event dialog */}
+      <Dialog open={customOpen} onOpenChange={setCustomOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Add an Activity</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Child <span className="text-red-500">*</span></Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={customForm.student_id}
+                onChange={(e) => setCustomForm((f) => ({ ...f, student_id: e.target.value }))}
+                data-testid="select-custom-child"
+              >
+                <option value="">Select child…</option>
+                {children.map((c) => <option key={c.student_id} value={c.student_id}>{c.student_name ?? "Child"}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Activity name <span className="text-red-500">*</span></Label>
+              <Input value={customForm.title} onChange={(e) => setCustomForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Private swimming" data-testid="input-custom-title" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea value={customForm.description} onChange={(e) => setCustomForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional" rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Repeats on</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAYS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(d)}
+                    className={`px-2.5 py-1 rounded-full text-xs border ${customForm.days_of_week.includes(d) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300"}`}
+                    data-testid={`toggle-day-${d}`}
+                  >
+                    {d.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Start time</Label>
+                <Input type="time" value={customForm.start_time} onChange={(e) => setCustomForm((f) => ({ ...f, start_time: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>End time</Label>
+                <Input type="time" value={customForm.end_time} onChange={(e) => setCustomForm((f) => ({ ...f, end_time: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>From</Label>
+                <Input type="date" value={customForm.start_date} onChange={(e) => setCustomForm((f) => ({ ...f, start_date: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Until</Label>
+                <Input type="date" value={customForm.end_date} onChange={(e) => setCustomForm((f) => ({ ...f, end_date: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Input value={customForm.location} onChange={(e) => setCustomForm((f) => ({ ...f, location: e.target.value }))} placeholder="e.g. Aquatic Centre" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => addCustom.mutate()}
+              disabled={!customForm.student_id || !customForm.title.trim() || addCustom.isPending}
+              className="bg-indigo-600 hover:bg-indigo-700"
+              data-testid="button-save-custom-event"
+            >
+              {addCustom.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Add Activity
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!signupFor} onOpenChange={(o) => { if (!o) setSignupFor(null); }}>
         <DialogContent>

@@ -13,6 +13,25 @@ import {
 
 const router = Router();
 
+/** Map a Drizzle event row (camelCase) to the snake_case API shape the clients expect. */
+function serializeEvent(e: any) {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description ?? null,
+    event_type: e.eventType,
+    start_datetime: e.startDatetime,
+    end_datetime: e.endDatetime ?? null,
+    location: e.location ?? null,
+    audience: e.audience,
+    requires_approval: e.requiresApproval ?? false,
+    approval_due_date: e.approvalDueDate ?? null,
+    school_id: e.schoolId,
+    created_at: e.createdAt,
+    updated_at: e.updatedAt ?? null,
+  };
+}
+
 router.get("/events", async (req, res) => {
   try {
     const query = ListEventsQueryParams.parse(req.query);
@@ -22,7 +41,7 @@ router.get("/events", async (req, res) => {
     let rows = await db.select().from(events).where(eq(events.schoolId, schoolId));
     if (query.audience) rows = rows.filter(e => e.audience === query.audience || e.audience === "school" || e.audience === "all");
     if (query.upcoming) rows = rows.filter(e => e.startDatetime && new Date(e.startDatetime) >= new Date());
-    res.json(rows);
+    res.json(rows.map(serializeEvent));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -62,7 +81,7 @@ router.post("/events", async (req, res) => {
       approvalDueDate: body.approval_due_date ?? null,
       schoolId, // server-derived; ignore any client-supplied school_id
     }).returning();
-    res.status(201).json(event);
+    res.status(201).json(serializeEvent(event));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -72,9 +91,12 @@ router.post("/events", async (req, res) => {
 router.get("/events/:id", async (req, res) => {
   try {
     const { id } = GetEventParams.parse(req.params);
-    const [event] = await db.select().from(events).where(eq(events.id, id)).limit(1);
+    const schoolId = await getRequesterSchoolId(req);
+    if (!schoolId) { res.status(403).json({ error: "No school context for this account" }); return; }
+    const [event] = await db.select().from(events)
+      .where(and(eq(events.id, id), eq(events.schoolId, schoolId))).limit(1);
     if (!event) { res.status(404).json({ error: "Not found" }); return; }
-    res.json(event);
+    res.json(serializeEvent(event));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -105,7 +127,7 @@ router.patch("/events/:id", async (req, res) => {
       updatedAt: new Date(),
     }).where(and(eq(events.id, id), eq(events.schoolId, schoolId))).returning();
     if (!event) { res.status(404).json({ error: "Not found" }); return; }
-    res.json(event);
+    res.json(serializeEvent(event));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

@@ -41,6 +41,9 @@ router.get("/activities", async (req, res) => {
         start_time: activities.startTime,
         end_time: activities.endTime,
         location: activities.location,
+        season: activities.season,
+        start_date: activities.startDate,
+        end_date: activities.endDate,
         school_id: activities.schoolId,
         created_at: activities.createdAt,
         coach_name: profiles.fullName,
@@ -82,6 +85,9 @@ router.post("/activities", async (req, res) => {
         startTime: str(req.body?.start_time),
         endTime: str(req.body?.end_time),
         location: str(req.body?.location),
+        season: str(req.body?.season) ?? "weekly",
+        startDate: str(req.body?.start_date),
+        endDate: str(req.body?.end_date),
         schoolId: admin.schoolId,
       })
       .returning();
@@ -117,6 +123,9 @@ router.patch("/activities/:id", async (req, res) => {
         startTime: str(req.body?.start_time),
         endTime: str(req.body?.end_time),
         location: str(req.body?.location),
+        season: str(req.body?.season) ?? "weekly",
+        startDate: str(req.body?.start_date),
+        endDate: str(req.body?.end_date),
       })
       .where(and(eq(activities.id, req.params.id), eq(activities.schoolId, admin.schoolId)))
       .returning();

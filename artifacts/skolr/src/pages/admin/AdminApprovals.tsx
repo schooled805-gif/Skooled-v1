@@ -184,7 +184,7 @@ export default function AdminApprovals() {
                   <CardContent className="p-4 flex items-center gap-4">
                     {statusIcon(a.status)}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900">{a.event_title ?? 'Event'}</p>
+                      <p className="font-medium text-gray-900">{a.event_title ?? (a as any).title ?? 'Request'}</p>
                       <p className="text-sm text-gray-500">{a.student_name} — Parent: {a.parent_user_id?.slice(0, 8)}…</p>
                       {a.response_comment && <p className="text-xs text-gray-400 italic mt-1">"{a.response_comment}"</p>}
                     </div>
